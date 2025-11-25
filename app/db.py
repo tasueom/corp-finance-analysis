@@ -100,6 +100,46 @@ def create_table():
         if conn:
             conn.close()
 
+def get_latest_year_by_corp_code(corp_code):
+    """기업 코드로 최근 연도를 조회합니다. 데이터가 없으면 None을 반환합니다."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT MAX(year) FROM {TABLE_NAME} WHERE corp_code = %s", (corp_code,))
+        result = cursor.fetchone()
+        return result[0] if result and result[0] is not None else None
+    except mysql.connector.Error as err:
+        print(f"Get latest year failed: {err}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def delete_data_by_corp_code(corp_code):
+    """기업 코드로 해당 기업의 모든 데이터를 삭제합니다."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM {TABLE_NAME} WHERE corp_code = %s", (corp_code,))
+        conn.commit()
+        return True
+    except mysql.connector.Error as err:
+        print(f"Data deletion failed: {err}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 def insert_data(data):
     """데이터를 삽입하고 성공 여부를 반환합니다."""
     conn = None

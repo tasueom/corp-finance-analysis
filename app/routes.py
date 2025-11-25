@@ -42,6 +42,34 @@ def insert_data():
         # 기업 이름으로 다시 데이터 조회
         df = service.get_finance_dataframe_10years(corp_name)
         
+        if df.empty:
+            flash('저장할 데이터가 없습니다.', 'error')
+            return redirect(url_for('search'))
+        
+        # 기업 코드 추출 (첫 번째 행에서)
+        corp_code = df.iloc[0]['corp_code'] if not df.empty else None
+        if not corp_code:
+            flash('기업 코드를 찾을 수 없습니다.', 'error')
+            return redirect(url_for('search'))
+        
+        # 삽입하려는 데이터의 최근 연도 확인
+        latest_year_to_insert = int(df['year'].max())
+        
+        # DB에서 해당 기업 코드의 최근 연도 확인
+        db_latest_year = db.get_latest_year_by_corp_code(corp_code)
+        
+        # 기존 데이터가 있고 최근 연도가 같으면 중복 메시지
+        if db_latest_year is not None and db_latest_year == latest_year_to_insert:
+            flash('이미 데이터가 등록된 기업입니다.', 'info')
+            return redirect(url_for('search'))
+        
+        # 기존 데이터가 있고 최근 연도가 다르면 기존 데이터 삭제 후 새로 삽입
+        if db_latest_year is not None and db_latest_year != latest_year_to_insert:
+            delete_success = db.delete_data_by_corp_code(corp_code)
+            if not delete_success:
+                flash('기존 데이터 삭제 중 오류가 발생했습니다.', 'error')
+                return redirect(url_for('search'))
+        
         # DataFrame을 튜플 리스트로 변환 (db.insert_data에 맞는 형식)
         # 컬럼 순서: corp_name, corp_code, account_nm, amount, year
         import math
@@ -82,7 +110,12 @@ def insert_data():
         success = db.insert_data(insert_values)
         
         if success:
-            flash(f'{corp_name}의 재무제표 데이터 {len(insert_values)}개가 성공적으로 저장되었습니다.', 'success')
+            if db_latest_year is not None:
+                # 갱신된 경우
+                flash(f'{corp_name}의 재무제표 데이터가 갱신되었습니다.', 'success')
+            else:
+                # 새로 삽입된 경우
+                flash(f'{corp_name}의 재무제표 데이터 {len(insert_values)}개가 성공적으로 저장되었습니다.', 'success')
         else:
             flash('데이터 저장 중 오류가 발생했습니다.', 'error')
         
