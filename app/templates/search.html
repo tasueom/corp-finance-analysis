@@ -6,9 +6,47 @@
 
 {% block content %}
 <h2>기업 재무제표 검색</h2>
-<p>기업 이름을 검색하여 최근 10년의 정보를 분석합니다.</p>
+<p>기업 이름을 검색하여 재무제표 정보를 확인합니다.</p>
 <form method="post">
-    <input type="text" name="corp_name" placeholder="기업 이름" required>
+    <input type="text" name="corp_name" placeholder="기업 이름" required value="{{ corp_name if corp_name else '' }}">
     <button type="submit">검색</button>
 </form>
+
+{% if error %}
+    <div style="color: red; margin-top: 20px;">
+        <strong>오류:</strong> {{ error }}
+    </div>
+{% elif data %}
+    <div style="margin-top: 30px;">
+        <h3>{{ corp_name }} 재무제표 데이터 (최근 10년치)</h3>
+        <p>총 {{ row_count }}개의 데이터</p>
+        <table border="1" cellpadding="10" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <thead>
+                <tr style="background-color: #f0f0f0;">
+                    {% for col in columns %}
+                        <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                    <tr>
+                        {% for col in columns %}
+                            <td>
+                                {% if col == 'year' %}
+                                    {# 연도는 쉼표 없이 표시 #}
+                                    {{ row[col] if row[col] else '-' }}
+                                {% elif row[col] is number %}
+                                    {{ "{:,}".format(row[col]) if row[col] else '-' }}
+                                {% else %}
+                                    {{ row[col] if row[col] else '-' }}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
 {% endblock %}
