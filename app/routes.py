@@ -136,11 +136,17 @@ def view():
     if request.method == "POST":
         action = request.form.get("action")
 
-        # 1) 기업 선택 → 연도 목록 표시
+        # 1) 기업 선택 → 연도 목록 표시 및 최근 연도 자동 선택
         if action == "select_corp":
             selected_corp = request.form.get("corp_name")
-            selected_year = None  # 기업 변경 시 연도 초기화
             years = db.get_year_list(selected_corp)
+            # 최근 연도 자동 선택 (내림차순 정렬되어 있으므로 첫 번째가 최근 연도)
+            if years:
+                selected_year = str(years[0][0])  # 최근 연도 자동 선택
+                rows = db.get_account_data_by_year(selected_corp, selected_year)
+            else:
+                selected_year = None
+                rows = []
 
         # 2) 연도 선택 → 데이터 조회
         elif action == "select_year":
@@ -159,6 +165,9 @@ def view():
         
         if selected_corp:
             years = db.get_year_list(selected_corp)
+            # 연도가 선택되지 않았으면 최근 연도 자동 선택
+            if not selected_year and years:
+                selected_year = str(years[0][0])  # 최근 연도 자동 선택
             if selected_year:
                 rows = db.get_account_data_by_year(selected_corp, selected_year)
         else:
@@ -184,6 +193,9 @@ def chart():
     
     if selected_corp:
         year_list = [row[0] for row in db.get_year_list(selected_corp)]
+        # 연도가 선택되지 않았으면 최근 연도 자동 선택
+        if not selected_year and year_list:
+            selected_year = str(year_list[0])  # 최근 연도 자동 선택
     
     return render_template('chart.html',
                             corp_list=corp_list,
