@@ -11,7 +11,7 @@
     <input type="hidden" name="action" value="select_corp">
 
     <select name="corp_name" onchange="this.form.submit()">
-        <option value="">기업 선택하세요</option>
+        <option value="" disabled selected hidden>기업선택</option>
         {% for c in corp_list %}
             <option value="{{ c[0] }}" {% if selected_corp == c[0] %}selected{% endif %}>
                 {{ c[0] }}
@@ -22,14 +22,12 @@
 
 {% if selected_corp %}
 
-<h3>{{ selected_corp }} — 연도 선택</h3>
-
 <form method="post">
     <input type="hidden" name="action" value="select_year">
     <input type="hidden" name="corp_name" value="{{ selected_corp }}">
 
     <select name="year" onchange="this.form.submit()">
-        <option value="">연도 선택</option>
+        <option value="" disabled selected hidden>연도선택</option>
         {% for y in years %}
             <option value="{{ y[0] }}" {% if selected_year and selected_year|string == y[0]|string %}selected{% endif %}>
                 {{ y[0] }}
