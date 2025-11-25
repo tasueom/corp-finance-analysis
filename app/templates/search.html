@@ -1,12 +1,12 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    기업 재무제표 검색
+    기업 재무상태표 검색
 {% endblock %}
 
 {% block content %}
-<h2>기업 재무제표 검색</h2>
-<p>기업 이름을 검색하여 재무제표 정보를 확인합니다.</p>
+<h2>기업 재무상태표 검색</h2>
+<p>기업 이름을 검색하여 OpenDart API를 통해 재무상태표 정보를 확인합니다.</p>
 <form method="post">
     <input type="text" name="corp_name" placeholder="기업 이름" required value="{{ corp_name if corp_name else '' }}">
     <button type="submit">검색</button>
@@ -18,7 +18,7 @@
     </div>
 {% elif data %}
     <div style="margin-top: 30px;">
-        <h3>{{ corp_name }} 재무제표 데이터 (최근 10년치)</h3>
+        <h3>{{ corp_name }} 재무상태표 데이터 (최근 10년치)</h3>
         <p>총 {{ row_count }}개의 데이터</p>
         <form method="post" action="{{ url_for('insert_data') }}" style="display: inline;">
             <input type="hidden" name="corp_name" value="{{ corp_name }}">
