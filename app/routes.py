@@ -1,6 +1,8 @@
-from flask import render_template, request, redirect, url_for, session, jsonify, flash
+from flask import render_template, request, redirect, url_for, session, jsonify, flash, send_file
 from app import app, service, db
 import pandas as pd
+import os
+from io import BytesIO
 
 @app.route('/')
 def index():
@@ -216,3 +218,50 @@ def chart2_data(corp, year):
     accounts = [row[0] for row in data]
     amounts = [row[1] for row in data]
     return jsonify({'accounts': accounts, 'amounts': amounts})
+
+@app.route("/export_csv")
+def export_csv():
+    rows = db.get_all_data()
+    
+    df = pd.DataFrame(rows, columns=[
+        "기업 이름",
+        "회계 항목명",
+        "금액",
+        "년도"
+    ])
+    
+    # BytesIO를 사용하여 가상 파일 생성
+    output = BytesIO()
+    df.to_csv(output, index=False, encoding="utf-8-sig")
+    output.seek(0)  # 파일 포인터를 처음으로 이동
+    
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="재무상태표.csv",
+        mimetype="text/csv"
+    )
+    
+@app.route("/export_json")
+def export_json():
+    rows = db.get_all_data()
+    
+    df = pd.DataFrame(rows, columns=[
+        "기업 이름",
+        "회계 항목명",
+        "금액",
+        "년도"
+    ])
+    
+    # BytesIO를 사용하여 가상 파일 생성
+    output = BytesIO()
+    json_str = df.to_json(force_ascii=False, orient="records", indent=4)
+    output.write(json_str.encode('utf-8'))
+    output.seek(0)  # 파일 포인터를 처음으로 이동
+    
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="재무상태표.json",
+        mimetype="application/json"
+    )

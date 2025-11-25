@@ -243,16 +243,24 @@ def get_account_data_by_year(corp_name, year):
         if conn:
             conn.close()
 
-def get_all_data(corp_name):
-    """특정 기업의 모든 데이터를 조회합니다."""
+def get_all_data():
+    """모든 기업의 전체 기간 재무상태표를 조회합니다."""
     conn = None
     cursor = None
     try:
         conn = get_conn()
         cursor = conn.cursor()
-        cursor.execute(f"SELECT * FROM {TABLE_NAME} WHERE corp_name = %s", (corp_name,))
+        cursor.execute(f"""
+                        SELECT corp_name, account_nm, amount, year FROM {TABLE_NAME}
+                        ORDER BY corp_name, year
+                        """)
         result = cursor.fetchall()
         return result
     except mysql.connector.Error as err:
         print(f"All data retrieval failed: {err}")
         return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

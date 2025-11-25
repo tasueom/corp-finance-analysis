@@ -7,6 +7,16 @@
 {% block content %}
 <h2>재무상태표 데이터 조회</h2>
 
+<div class="download-buttons">
+    <p>전체 재무상태표 다운로드</p>
+    <a href="{{ url_for('export_csv') }}" class="btn-download btn-csv" title="CSV 다운로드">
+        <i class="fas fa-file-csv"></i>
+    </a>
+    <a href="{{ url_for('export_json')}}" class="btn-download btn-json" title="JSON 다운로드">
+        <i class="fas fa-file-code"></i>
+    </a>
+</div>
+
 <form method="post">
     <input type="hidden" name="action" value="select_corp">
 
