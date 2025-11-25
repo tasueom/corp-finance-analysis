@@ -11,7 +11,7 @@ base_config = {
     "password": os.environ.get('DB_PASSWORD'),
 }
 
-DB_NAME = os.environ.get('DB_NAME', 'scoredb')
+DB_NAME = os.environ.get('DB_NAME', 'default_db')
 
 TABLE_NAME = "corp_finance"
 
@@ -95,6 +95,27 @@ def create_table():
         return False
     finally:
         # 리소스 정리: 예외 발생 여부와 관계없이 항상 실행
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def insert_data(data):
+    """데이터를 삽입하고 성공 여부를 반환합니다."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.executemany(f"INSERT INTO {TABLE_NAME} (corp_name, corp_code, account_nm, amount, year) VALUES (%s, %s, %s, %s, %s)", data)
+        conn.commit()
+        return True
+    except mysql.connector.Error as err:
+        print(f"Data insertion failed: {err}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
         if cursor:
             cursor.close()
         if conn:

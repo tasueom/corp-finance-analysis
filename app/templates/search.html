@@ -20,6 +20,10 @@
     <div style="margin-top: 30px;">
         <h3>{{ corp_name }} 재무제표 데이터 (최근 10년치)</h3>
         <p>총 {{ row_count }}개의 데이터</p>
+        <form method="post" action="{{ url_for('insert_data') }}" style="display: inline;">
+            <input type="hidden" name="corp_name" value="{{ corp_name }}">
+            <button type="submit">데이터베이스에 저장</button>
+        </form>
         <table border="1" cellpadding="10" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
             <thead>
                 <tr style="background-color: #f0f0f0;">
