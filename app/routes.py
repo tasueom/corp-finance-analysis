@@ -131,15 +131,15 @@ def view():
     corp_list = db.get_corp_list()              # 기업 리스트 가져오기
     years = []
     rows = []
-    selected_corp = None
-    selected_year = None
-
+    
+    # POST 요청에서 선택값 가져오기
     if request.method == "POST":
         action = request.form.get("action")
 
         # 1) 기업 선택 → 연도 목록 표시
         if action == "select_corp":
             selected_corp = request.form.get("corp_name")
+            selected_year = None  # 기업 변경 시 연도 초기화
             years = db.get_year_list(selected_corp)
 
         # 2) 연도 선택 → 데이터 조회
@@ -149,6 +149,21 @@ def view():
 
             years = db.get_year_list(selected_corp)                  # 연도 다시 로딩 (유지)
             rows = db.get_account_data_by_year(selected_corp, selected_year)
+        else:
+            selected_corp = None
+            selected_year = None
+    else:
+        # GET 요청 시 쿼리 파라미터에서 가져오기
+        selected_corp = request.args.get("corp_name")
+        selected_year = request.args.get("year")
+        
+        if selected_corp:
+            years = db.get_year_list(selected_corp)
+            if selected_year:
+                rows = db.get_account_data_by_year(selected_corp, selected_year)
+        else:
+            selected_corp = None
+            selected_year = None
 
     return render_template(
         "view.html",

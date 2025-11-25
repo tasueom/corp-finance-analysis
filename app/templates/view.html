@@ -31,7 +31,7 @@
     <select name="year" onchange="this.form.submit()">
         <option value="">연도 선택</option>
         {% for y in years %}
-            <option value="{{ y[0] }}" {% if selected_year == y[0] %}selected{% endif %}>
+            <option value="{{ y[0] }}" {% if selected_year and selected_year|string == y[0]|string %}selected{% endif %}>
                 {{ y[0] }}
             </option>
         {% endfor %}
