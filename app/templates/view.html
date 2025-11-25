@@ -41,17 +41,21 @@
 
 <h3>{{ selected_corp }} — {{ selected_year }}년 재무상태표</h3>
 
-<table border="1" cellpadding="5">
-    <tr>
-        <th>계정명</th>
-        <th>금액</th>
-    </tr>
-    {% for r in rows %}
-    <tr>
-        <td>{{ r[0] }}</td>
-        <td>{{ "{:,}".format(r[1]) }}</td>
-    </tr>
+<table id="data-table">
+    <thead>
+        <tr>
+            <th>계정명</th>
+            <th>금액</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in rows %}
+        <tr>
+            <td>{{ r[0] }}</td>
+            <td>{{ "{:,}".format(r[1]) }}</td>
+        </tr>
     {% endfor %}
+    </tbody>
 </table>
 {% endif %}
 
