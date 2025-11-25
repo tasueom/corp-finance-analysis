@@ -13,7 +13,7 @@ base_config = {
 
 DB_NAME = os.environ.get('DB_NAME', 'default_db')
 
-TABLE_NAME = "corp_finance"
+TABLE_NAME = os.environ.get('TABLE_NAME', 'corp_finance')
 
 def get_conn():
     """커넥션과 커서 반환하는 함수"""
