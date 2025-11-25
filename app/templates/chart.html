@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    재무상태표 차트
+{% endblock %}
+
+{% block content %}
+<h2>{% if selected_corp %}{{ selected_corp }} {% endif %}재무상태표 차트</h2>
+<form method="POST" id="selectForm">
+    <label>기업 선택:</label>
+    <select name="corp" id="corpSelect" onchange="document.getElementById('selectForm').submit()">
+        <option value="" disabled selected hidden>기업선택</option>
+        {% for corp in corp_list %}
+            <option value="{{ corp }}" {% if selected_corp==corp %}selected{% endif %}>{{ corp }}</option>
+        {% endfor %}
+    </select>
+
+    {% if selected_corp %}
+    <br><br>
+    <label>연도 선택:</label>
+    <select name="year" id="yearSelect" onchange="document.getElementById('selectForm').submit()">
+        <option value="" disabled selected hidden>연도선택</option>
+        {% for y in year_list %}
+            <option value="{{ y }}" {% if selected_year==y|string %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
+</form>
+
+{% if selected_corp %}
+<h2>{{ selected_corp }} 최근 10년 자산총계</h2>
+<canvas id="chart1"></canvas>
+{% endif %}
+
+{% if selected_corp and selected_year %}
+<h2>{{ selected_corp }} {{ selected_year }}년 재무상태표</h2>
+<canvas id="chart2"></canvas>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    {% if selected_corp %}
+    fetch('/chart1_data/{{ selected_corp }}')
+    .then(res => res.json())
+    .then(data => {
+        const ctx = document.getElementById('chart1').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.years,
+                datasets: [{
+                    label: '자산총계',
+                    data: data.amounts,
+                    borderColor: 'blue',
+                    fill: false,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+    });
+    {% endif %}
+    
+    {% if selected_corp and selected_year %}
+    fetch('/chart2_data/{{ selected_corp }}/{{ selected_year }}')
+    .then(res => res.json())
+    .then(data => {
+        const ctx = document.getElementById('chart2').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.accounts,
+                datasets: [{
+                    label: '{{ selected_year }}년 금액',
+                    data: data.amounts,
+                    backgroundColor: 'orange'
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+    });
+    {% endif %}
+</script>
+{% endblock %}

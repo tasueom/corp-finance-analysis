@@ -160,3 +160,85 @@ def insert_data(data):
             cursor.close()
         if conn:
             conn.close()
+
+def get_corp_list():
+    """기업 리스트를 조회합니다."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT DISTINCT corp_name FROM {TABLE_NAME}")
+        result = cursor.fetchall()
+        return result
+    except mysql.connector.Error as err:
+        print(f"Corp list retrieval failed: {err}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def get_year_list(corp_name):
+    """연도 목록을 조회합니다."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT DISTINCT year FROM {TABLE_NAME} WHERE corp_name = %s order by year desc", (corp_name,))
+        result = cursor.fetchall()
+        return result
+    except mysql.connector.Error as err:
+        print(f"Year list retrieval failed: {err}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def get_jasan_data(corp_name):
+    """자산 데이터를 조회합니다."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute(f"""
+                        SELECT year, amount FROM {TABLE_NAME} WHERE corp_name = %s AND account_nm = '자산총계'
+                        ORDER BY year
+                        """, (corp_name,))
+        result = cursor.fetchall()
+        return result
+    except mysql.connector.Error as err:
+        print(f"Jasan data retrieval failed: {err}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def get_account_data_by_year(corp_name, year):
+    """특정 기업의 특정 연도 계정과목 데이터를 조회합니다."""
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute(f"""
+            SELECT account_nm, amount FROM {TABLE_NAME}
+            WHERE corp_name = %s AND year = %s
+        """, (corp_name, year))
+        result = cursor.fetchall()
+        return result
+    except mysql.connector.Error as err:
+        print(f"Account data retrieval failed: {err}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

@@ -11,6 +11,7 @@
         <ul>
             <li><a href="{{ url_for('index') }}">메인으로</a></li>
             <li><a href="{{ url_for('search') }}">기업 검색</a></li>
+            <li><a href="{{ url_for('chart') }}">차트 보기</a></li>
         </ul>
     </nav>
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -25,6 +26,10 @@
                         <div style="padding: 10px; margin: 5px 0; border-radius: 4px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
                             {{ message }}
                         </div>
+                    {% elif category == 'info' %}
+                        <div style="padding: 10px; margin: 5px 0; border-radius: 4px; background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7;">
+                            {{ message }}
+                        </div>
                     {% else %}
                         <div style="padding: 10px; margin: 5px 0; border-radius: 4px; background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;">
                             {{ message }}
@@ -35,5 +40,6 @@
         {% endif %}
     {% endwith %}
     {% block content %}{% endblock %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>

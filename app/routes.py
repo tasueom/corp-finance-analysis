@@ -125,3 +125,34 @@ def insert_data():
     except Exception as e:
         flash(f'데이터 저장 중 오류가 발생했습니다: {str(e)}', 'error')
         return redirect(url_for('search'))
+
+@app.route('/chart', methods=['GET', 'POST'])
+def chart():
+    corp_list = [row[0] for row in db.get_corp_list()]
+    
+    selected_corp = request.form.get('corp')
+    selected_year = request.form.get('year')
+    year_list = []
+    
+    if selected_corp:
+        year_list = [row[0] for row in db.get_year_list(selected_corp)]
+    
+    return render_template('chart.html',
+                            corp_list=corp_list,
+                            selected_corp=selected_corp,
+                            year_list=year_list,
+                            selected_year=selected_year)
+
+@app.route('/chart1_data/<corp>')
+def chart1_data(corp):
+    data = db.get_jasan_data(corp)
+    years = [row[0] for row in data]
+    amounts = [row[1] for row in data]
+    return jsonify({'years': years, 'amounts': amounts})
+
+@app.route('/chart2_data/<corp>/<year>')
+def chart2_data(corp, year):
+    data = db.get_account_data_by_year(corp, year)
+    accounts = [row[0] for row in data]
+    amounts = [row[1] for row in data]
+    return jsonify({'accounts': accounts, 'amounts': amounts})
