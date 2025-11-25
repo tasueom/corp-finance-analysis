@@ -4,6 +4,7 @@ import zipfile
 import io
 import os
 import pandas as pd
+import math
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
@@ -410,3 +411,149 @@ def get_finance_dataframe_10years(corp_name):
         result_df = result_df.sort_values('year', ascending=False)
     
     return result_df
+
+def read_readme():
+    """
+    README.md 파일을 읽어서 내용을 반환합니다.
+    
+    Returns:
+        str: README.md 파일 내용, 파일을 찾을 수 없거나 읽는 중 오류가 발생하면 오류 메시지
+    """
+    readme_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'README.md')
+    try:
+        with open(readme_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "README.md 파일을 찾을 수 없습니다."
+    except Exception as e:
+        return f"README.md 파일을 읽는 중 오류가 발생했습니다: {str(e)}"
+
+def prepare_data_for_insert(corp_name):
+    """
+    기업 이름을 받아서 데이터베이스 삽입을 위한 데이터를 준비합니다.
+    
+    DataFrame을 처리하고, NaN 값을 처리하며, 중복 체크 및 기존 데이터 삭제 로직을 수행합니다.
+    
+    Args:
+        corp_name (str): 기업 이름
+        
+    Returns:
+        tuple: (success: bool, message: str, insert_values: list, is_update: bool)
+            - success: 성공 여부
+            - message: 결과 메시지
+            - insert_values: 삽입할 데이터 리스트 (성공 시)
+            - is_update: 갱신 여부 (기존 데이터가 있었는지)
+    """
+    if not corp_name:
+        return False, '기업 이름이 필요합니다.', None, False
+    
+    try:
+        # 기업 이름으로 다시 데이터 조회
+        df = get_finance_dataframe_10years(corp_name)
+        
+        if df.empty:
+            return False, '저장할 데이터가 없습니다.', None, False
+        
+        # 기업 코드 추출 (첫 번째 행에서)
+        corp_code = df.iloc[0]['corp_code'] if not df.empty else None
+        if not corp_code:
+            return False, '기업 코드를 찾을 수 없습니다.', None, False
+        
+        # 삽입하려는 데이터의 최근 연도 확인
+        latest_year_to_insert = int(df['year'].max())
+        
+        # DB에서 해당 기업 코드의 최근 연도 확인 (db 모듈 import 필요)
+        from app import db
+        db_latest_year = db.get_latest_year_by_corp_code(corp_code)
+        
+        # 기존 데이터가 있고 최근 연도가 같으면 중복 메시지
+        if db_latest_year is not None and db_latest_year == latest_year_to_insert:
+            return False, '이미 데이터가 등록된 기업입니다.', None, False
+        
+        is_update = False
+        # 기존 데이터가 있고 최근 연도가 다르면 기존 데이터 삭제 후 새로 삽입
+        if db_latest_year is not None and db_latest_year != latest_year_to_insert:
+            delete_success = db.delete_data_by_corp_code(corp_code)
+            if not delete_success:
+                return False, '기존 데이터 삭제 중 오류가 발생했습니다.', None, False
+            is_update = True
+        
+        # DataFrame을 튜플 리스트로 변환 (db.insert_data에 맞는 형식)
+        # 컬럼 순서: corp_name, corp_code, account_nm, amount, year
+        insert_values = []
+        for row in df.to_dict('records'):
+            # NaN 값 처리
+            amount = row.get('amount')
+            year = row.get('year')
+            
+            # amount 처리 (NaN이면 None)
+            if amount is None or (isinstance(amount, float) and math.isnan(amount)):
+                amount_value = None
+            else:
+                try:
+                    amount_value = int(float(amount))
+                except (ValueError, TypeError):
+                    amount_value = None
+            
+            # year 처리 (NaN이면 None)
+            if year is None or (isinstance(year, float) and math.isnan(year)):
+                year_value = None
+            else:
+                try:
+                    year_value = int(float(year))
+                except (ValueError, TypeError):
+                    year_value = None
+            
+            insert_values.append((
+                row.get('corp_name', ''),
+                row.get('corp_code', ''),
+                row.get('account_nm', ''),
+                amount_value,
+                year_value
+            ))
+        
+        return True, '', insert_values, is_update
+    
+    except Exception as e:
+        return False, f'데이터 준비 중 오류가 발생했습니다: {str(e)}', None, False
+
+def export_data_to_csv():
+    """
+    데이터베이스의 모든 데이터를 CSV 형식으로 내보냅니다.
+    
+    Returns:
+        tuple: (df: pd.DataFrame, columns: list)
+            - df: CSV로 변환할 DataFrame
+            - columns: 컬럼 이름 리스트
+    """
+    from app import db
+    rows = db.get_all_data()
+    
+    df = pd.DataFrame(rows, columns=[
+        "기업 이름",
+        "회계 항목명",
+        "금액",
+        "년도"
+    ])
+    
+    return df
+
+def export_data_to_json():
+    """
+    데이터베이스의 모든 데이터를 JSON 형식으로 내보냅니다.
+    
+    Returns:
+        str: JSON 문자열 (UTF-8 인코딩)
+    """
+    from app import db
+    rows = db.get_all_data()
+    
+    df = pd.DataFrame(rows, columns=[
+        "기업 이름",
+        "회계 항목명",
+        "금액",
+        "년도"
+    ])
+    
+    json_str = df.to_json(force_ascii=False, orient="records", indent=4)
+    return json_str
