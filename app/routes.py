@@ -126,6 +126,39 @@ def insert_data():
         flash(f'데이터 저장 중 오류가 발생했습니다: {str(e)}', 'error')
         return redirect(url_for('search'))
 
+@app.route('/view', methods=['GET', 'POST'])
+def view():
+    corp_list = db.get_corp_list()              # 기업 리스트 가져오기
+    years = []
+    rows = []
+    selected_corp = None
+    selected_year = None
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        # 1) 기업 선택 → 연도 목록 표시
+        if action == "select_corp":
+            selected_corp = request.form.get("corp_name")
+            years = db.get_year_list(selected_corp)
+
+        # 2) 연도 선택 → 데이터 조회
+        elif action == "select_year":
+            selected_corp = request.form.get("corp_name")
+            selected_year = request.form.get("year")
+
+            years = db.get_year_list(selected_corp)                  # 연도 다시 로딩 (유지)
+            rows = db.get_account_data_by_year(selected_corp, selected_year)
+
+    return render_template(
+        "view.html",
+        corp_list=corp_list,
+        years=years,
+        rows=rows,
+        selected_corp=selected_corp,
+        selected_year=selected_year
+    )
+
 @app.route('/chart', methods=['GET', 'POST'])
 def chart():
     corp_list = [row[0] for row in db.get_corp_list()]
