@@ -62,7 +62,7 @@
         {% for r in rows %}
         <tr>
             <td>{{ r[0] }}</td>
-            <td>{{ "{:,}".format(r[1]) }}</td>
+            <td>{% if r[1] is not none %}{{ "{:,}".format(r[1]) }}{% else %}-{% endif %}</td>
         </tr>
     {% endfor %}
     </tbody>
