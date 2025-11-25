@@ -9,7 +9,7 @@
 <form method="POST" id="selectForm">
     <label>기업 선택:</label>
     <select name="corp" id="corpSelect" onchange="document.getElementById('selectForm').submit()">
-        <option value="" disabled selected hidden>기업선택</option>
+        <option value="" disabled hidden {% if not selected_corp %}selected{% endif %}>기업선택</option>
         {% for corp in corp_list %}
             <option value="{{ corp }}" {% if selected_corp==corp %}selected{% endif %}>{{ corp }}</option>
         {% endfor %}
@@ -19,7 +19,7 @@
     <br><br>
     <label>연도 선택:</label>
     <select name="year" id="yearSelect" onchange="document.getElementById('selectForm').submit()">
-        <option value="" disabled selected hidden>연도선택</option>
+        <option value="" disabled hidden {% if not selected_year %}selected{% endif %}>연도선택</option>
         {% for y in year_list %}
             <option value="{{ y }}" {% if selected_year==y|string %}selected{% endif %}>{{ y }}</option>
         {% endfor %}
