@@ -138,6 +138,93 @@ def get_corp_code(corp_name):
     except ET.ParseError as e:
         raise Exception(f"XML 파싱 중 오류 발생: {str(e)}")
 
+def search_corps(search_term, limit=50):
+    """
+    검색어가 포함된 기업 목록을 조회합니다.
+    
+    Args:
+        search_term (str): 검색할 기업 이름 (부분 일치)
+        limit (int): 최대 반환 개수 (기본값: 50)
+        
+    Returns:
+        list: 기업 정보 리스트 [{'corp_name': '기업명', 'corp_code': '기업코드'}, ...]
+    """
+    if not API_KEY:
+        raise ValueError("API_KEY 환경변수가 설정되지 않았습니다.")
+    
+    if not search_term or len(search_term.strip()) < 1:
+        return []
+    
+    search_term = search_term.strip()
+    
+    # corpCode.xml 다운로드 URL
+    url = f'{BASE_URL}/corpCode.xml?crtfc_key={API_KEY}'
+    
+    try:
+        # ZIP 파일로 압축된 XML 다운로드
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        # 응답 내용 확인 (에러 메시지인지 체크)
+        content_type = response.headers.get('Content-Type', '').lower()
+        response_text = response.text[:200].lower() if hasattr(response, 'text') else ''
+        
+        # HTML 응답인지 확인 (인증 실패 또는 잘못된 API 키)
+        if 'text/html' in content_type or response_text.startswith('<!doctype html') or response_text.startswith('<html'):
+            raise Exception("DART API 인증 실패: API_KEY가 올바르지 않거나 설정되지 않았습니다.")
+        
+        # ZIP 파일인지 확인
+        if not response.content.startswith(b'PK'):
+            raise Exception("다운로드한 파일이 ZIP 형식이 아닙니다.")
+        
+        results = []
+        
+        # ZIP 파일 압축 해제 및 XML 파싱
+        try:
+            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+                # 파일 목록 확인
+                file_list = z.namelist()
+                
+                # CORPCODE.xml 파일 찾기 (대소문자 구분 없이)
+                xml_file = None
+                for fname in file_list:
+                    if fname.upper() == 'CORPCODE.XML':
+                        xml_file = fname
+                        break
+                
+                if not xml_file:
+                    raise Exception(f"ZIP 파일에 CORPCODE.xml이 없습니다.")
+                
+                # CORPCODE.xml 파일 열기
+                with z.open(xml_file) as f:
+                    tree = ET.parse(f)
+                    root = tree.getroot()
+                    
+                    # 검색어가 포함된 기업 찾기
+                    for child in root:
+                        corp_name_elem = child.find('corp_name')
+                        if corp_name_elem is not None and corp_name_elem.text:
+                            # 검색어가 기업 이름에 포함되어 있는지 확인 (대소문자 구분 없이)
+                            if search_term.lower() in corp_name_elem.text.lower():
+                                corp_code_elem = child.find('corp_code')
+                                if corp_code_elem is not None:
+                                    results.append({
+                                        'corp_name': corp_name_elem.text,
+                                        'corp_code': corp_code_elem.text
+                                    })
+                                    # limit에 도달하면 중단
+                                    if len(results) >= limit:
+                                        break
+        except zipfile.BadZipFile as e:
+            raise Exception(f"다운로드한 파일이 올바른 ZIP 형식이 아닙니다.")
+        
+        return results
+    
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"기업 검색 중 네트워크 오류 발생: {str(e)}")
+    except ET.ParseError as e:
+        raise Exception(f"XML 파싱 중 오류 발생: {str(e)}")
+
 def get_finance_data(corp_code, bsns_year='2024'):
     """
     기업 코드를 이용하여 재무제표 데이터를 조회합니다.

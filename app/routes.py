@@ -10,24 +10,39 @@ def index():
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     if request.method == 'POST':
-        corp_name = request.form['corp_name']
-        try:
-            # 10년치 DataFrame 가져오기
-            df = service.get_finance_dataframe_10years(corp_name)
-            
-            # DataFrame을 딕셔너리 리스트로 변환하여 템플릿에 전달
-            data = df.to_dict('records')
-            columns = df.columns.tolist()
-            
-            return render_template('search.html', 
-                                    corp_name=corp_name,
-                                    data=data,
-                                    columns=columns,
-                                    row_count=len(data))
-        except Exception as e:
-            return render_template('search.html', error=str(e), corp_name=corp_name if 'corp_name' in locals() else '')
+        # 기업 선택 후 재무제표 조회
+        corp_name = request.form.get('corp_name')
+        if corp_name:
+            try:
+                # 10년치 DataFrame 가져오기
+                df = service.get_finance_dataframe_10years(corp_name)
+                
+                # DataFrame을 딕셔너리 리스트로 변환하여 템플릿에 전달
+                data = df.to_dict('records')
+                columns = df.columns.tolist()
+                
+                return render_template('search.html', 
+                                        corp_name=corp_name,
+                                        data=data,
+                                        columns=columns,
+                                        row_count=len(data))
+            except Exception as e:
+                return render_template('search.html', error=str(e), corp_name=corp_name)
     
     return render_template('search.html')
+
+@app.route('/api/search_corps', methods=['GET'])
+def api_search_corps():
+    """검색어로 기업 목록을 반환하는 API"""
+    search_term = request.args.get('q', '').strip()
+    if not search_term:
+        return jsonify({'corps': []})
+    
+    try:
+        corps = service.search_corps(search_term, limit=50)
+        return jsonify({'corps': corps})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/insert_data', methods=['POST'])
 def insert_data():
