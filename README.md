@@ -74,7 +74,8 @@ BASE_URL=https://opendart.fss.or.kr/api
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=your_password
-DB_NAME=corp_finance
+DB_NAME=corpdb
+TABLE_NAME=corp_finance
 
 # Flask 설정
 SECRET_KEY=your_secret_key_here
