@@ -6,7 +6,18 @@ from io import BytesIO
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # README.md 파일 읽기
+    readme_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'README.md')
+    readme_content = ""
+    try:
+        with open(readme_path, 'r', encoding='utf-8') as f:
+            readme_content = f.read()
+    except FileNotFoundError:
+        readme_content = "README.md 파일을 찾을 수 없습니다."
+    except Exception as e:
+        readme_content = f"README.md 파일을 읽는 중 오류가 발생했습니다: {str(e)}"
+    
+    return render_template('index.html', readme_content=readme_content)
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():

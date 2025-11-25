@@ -5,5 +5,29 @@
 {% endblock %}
 
 {% block content %}
+<div class="readme-container">
+    <div class="readme-header">
+        <i class="fas fa-book"></i>
+        <h2>프로젝트 소개</h2>
+    </div>
+    <div id="readme-content" class="readme-content">
+        <!-- 마크다운 내용이 여기에 렌더링됩니다 -->
+    </div>
+</div>
+{% endblock %}
 
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    // README 마크다운 내용
+    const readmeMarkdown = {{ readme_content|tojson }};
+    
+    // 마크다운을 HTML로 변환
+    if (readmeMarkdown) {
+        const htmlContent = marked.parse(readmeMarkdown);
+        document.getElementById('readme-content').innerHTML = htmlContent;
+    } else {
+        document.getElementById('readme-content').innerHTML = '<p>README 내용이 없습니다.</p>';
+    }
+</script>
 {% endblock %}
