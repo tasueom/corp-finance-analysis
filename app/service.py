@@ -11,6 +11,8 @@ from datetime import datetime
 from app import db
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from sklearn.model_selection import train_test_split
 import numpy as np
 
 # .env 파일 로드 (명시적으로 경로 지정 및 여러 경로 시도)
@@ -790,11 +792,68 @@ def train_model(pivot, target_df):
     if X.isna().any().any() or y.isna().any().any():
         raise ValueError("데이터에 결측값이 있습니다. 모든 계정 ID의 데이터가 필요합니다.")
 
+    # 학습 데이터와 검증 데이터 분리 (80% 학습, 20% 검증)
+    # 데이터가 너무 적으면 분리하지 않음 (최소 5개 이상 필요)
+    if len(X) >= 5:
+        X_train, X_val, y_train, y_val = train_test_split(
+            X, y, test_size=0.2, random_state=42, shuffle=True
+        )
+    else:
+        # 데이터가 적으면 학습 데이터로만 평가 (과적합 경고 포함)
+        X_train, X_val = X, X
+        y_train, y_val = y, y
+    
     # ✅ 모델 학습
     model = LinearRegression()
-    model.fit(X, y)
+    model.fit(X_train, y_train)
+    
+    # 검증 데이터로 성능 지표 계산 (일반화 성능 평가)
+    y_pred = model.predict(X_val)
+    y_true = y_val
+    
+    # 각 타겟 변수별 성능 지표 계산
+    metrics = {}
+    target_names = ["자산총계", "자본총계", "부채총계"]
+    
+    # 데이터 분리 여부 확인
+    is_split = len(X) >= 5
+    
+    for i, target_name in enumerate(target_names):
+        y_true_col = y_true.iloc[:, i].values if hasattr(y_true, 'iloc') else y_true[:, i]
+        y_pred_col = y_pred[:, i]
+        
+        # 결정계수 (R²)
+        r2 = r2_score(y_true_col, y_pred_col)
+        
+        # 평균 제곱 오차 (MSE)
+        mse = mean_squared_error(y_true_col, y_pred_col)
+        
+        # 평균 절대 오차 (MAE)
+        mae = mean_absolute_error(y_true_col, y_pred_col)
+        
+        # 평균 제곱근 오차 (RMSE)
+        rmse = np.sqrt(mse)
+        
+        metrics[target_name] = {
+            'r2': r2,
+            'mse': mse,
+            'mae': mae,
+            'rmse': rmse
+        }
+    
+    # 전체 평균 성능 지표
+    avg_r2 = np.mean([metrics[name]['r2'] for name in target_names])
+    avg_rmse = np.mean([metrics[name]['rmse'] for name in target_names])
+    avg_mae = np.mean([metrics[name]['mae'] for name in target_names])
 
-    return model, COMMON_IDS, TARGET_IDS
+    return model, COMMON_IDS, TARGET_IDS, metrics, {
+        'avg_r2': avg_r2,
+        'avg_rmse': avg_rmse,
+        'avg_mae': avg_mae,
+        'is_split': is_split,
+        'train_size': len(X_train),
+        'val_size': len(X_val)
+    }
 
 def predict_company(model, pivot, corp_name, COMMON_IDS, TARGET_IDS, target_year=None):
     """

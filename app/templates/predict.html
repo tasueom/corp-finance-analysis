@@ -50,5 +50,133 @@
 </div>
 {% endif %}
 
+{% if metrics and avg_metrics %}
+<div style="margin-top: 40px;">
+    <h3>모델 성능 분석 지표</h3>
+    
+    <!-- 전체 평균 성능 지표 -->
+    <div style="margin-top: 20px; margin-bottom: 30px;">
+        <h4 style="color: #333; margin-bottom: 10px;">전체 평균 성능</h4>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+            <thead>
+                <tr style="background-color: #f5f5f5;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">지표</th>
+                    <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">값</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>평균 결정계수 (R²)</strong></td>
+                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">{{ "{:.4f}".format(avg_metrics['avg_r2']) }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>평균 RMSE</strong></td>
+                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">{{ "{:,.0f}".format(avg_metrics['avg_rmse']) }}</td>
+                </tr>
+                {% if 'is_split' in avg_metrics %}
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>학습 데이터 수</strong></td>
+                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">{{ avg_metrics['train_size'] }}개</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>검증 데이터 수</strong></td>
+                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">{{ avg_metrics['val_size'] }}개</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+        {% if 'is_split' in avg_metrics and not avg_metrics['is_split'] %}
+        <div style="margin-top: 15px; padding: 12px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+            <strong>⚠️ 주의:</strong> 학습 데이터가 부족하여(5개 미만) 검증 데이터로 분리하지 못했습니다. 
+            현재 성능 지표는 학습 데이터에 대한 성능이며, 실제 일반화 성능과 다를 수 있습니다. 
+            더 많은 데이터를 추가하면 더 정확한 성능 평가가 가능합니다.
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- 각 재무 지표별 성능 지표 -->
+    <div style="margin-top: 20px;">
+        <h4 style="color: #333; margin-bottom: 10px;">재무 지표별 성능 상세</h4>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+            <thead>
+                <tr style="background-color: #f5f5f5;">
+                    <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">재무 지표</th>
+                    <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">결정계수 (R²)</th>
+                    <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">RMSE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in metrics.items() %}
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>{{ key }}</strong></td>
+                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">{{ "{:.4f}".format(value.r2) }}</td>
+                    <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">{{ "{:,.0f}".format(value.rmse) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- 성능 지표 설명 -->
+    <div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid #4CAF50; border-radius: 4px;">
+        <h4 style="margin-top: 0; color: #333;">성능 지표 설명</h4>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #666;">
+            <li><strong>결정계수 (R²)</strong>: 0~1 사이의 값으로, 1에 가까울수록 모델의 설명력이 높습니다. 1.0이면 완벽한 예측을 의미합니다. 일반적으로 0.7 이상이면 좋은 모델로 평가됩니다.</li>
+            <li><strong>RMSE (Root Mean Squared Error)</strong>: 평균 제곱근 오차로, 예측값과 실제값의 차이를 나타냅니다. 값이 작을수록 좋습니다. 원래 단위(원)와 같아서 직관적으로 이해할 수 있어 재무 데이터 해석에 가장 유용합니다.</li>
+        </ul>
+        {% if metrics %}
+        {% set assets_r2 = metrics.get('자산총계', {}).get('r2', 0) if metrics.get('자산총계') else 0 %}
+        {% if assets_r2 >= 0.9999 %}
+        <div style="margin-top: 15px; padding: 12px; background-color: #e7f3ff; border-left: 4px solid #2196F3; border-radius: 4px;">
+            <strong>ℹ️ 자산총계 결정계수가 1에 가까운 이유:</strong>
+            <p style="margin: 8px 0 0 0; color: #666; line-height: 1.6;">
+                모델의 입력 변수(Feature)에 <strong>유동자산</strong>과 <strong>비유동자산</strong>이 포함되어 있습니다.<br>
+                회계상 <strong>자산총계 = 유동자산 + 비유동자산</strong>이므로, 모델이 이 관계를 학습하여 자산총계를 거의 완벽하게 예측할 수 있습니다.<br>
+                이는 데이터 누수(Data Leakage)의 한 형태이지만, 재무 데이터의 특성상 정상적인 현상입니다. 
+                실제로 자산총계는 유동자산과 비유동자산의 합이기 때문입니다.
+            </p>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+    
+    <!-- 학습 데이터로만 검증했을 때 R²가 1이 되는 이유 설명 -->
+    {% if 'is_split' in avg_metrics and not avg_metrics['is_split'] %}
+    <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+        <h4 style="margin-top: 0; color: #333;">왜 학습 데이터로만 검증하면 R²가 1이 될 수 있나요?</h4>
+        <div style="color: #666; line-height: 1.6;">
+            <p style="margin: 10px 0;"><strong>1. 과적합(Overfitting) 현상:</strong></p>
+            <ul style="margin: 5px 0 15px 20px; padding: 0;">
+                <li>모델이 학습 데이터의 패턴을 너무 정확하게 학습하여, 학습 데이터에 완벽하게 맞춰집니다.</li>
+                <li>노이즈까지 학습하여 학습 데이터에 대해서는 R² = 1, 오차 = 0이 나올 수 있습니다.</li>
+                <li>하지만 새로운 데이터(검증 데이터)에 대해서는 성능이 떨어질 수 있습니다.</li>
+            </ul>
+            
+            <p style="margin: 10px 0;"><strong>2. 데이터 수가 적을 때:</strong></p>
+            <ul style="margin: 5px 0 15px 20px; padding: 0;">
+                <li>현재 모델은 <strong>18개의 feature</strong>를 사용합니다.</li>
+                <li>만약 학습 데이터가 18개 이하라면, 18개의 방정식으로 18개의 미지수(계수)를 풀 수 있어 완벽한 해를 찾을 수 있습니다.</li>
+                <li>데이터가 적으면 모델이 각 데이터 포인트를 정확히 지나가도록 학습할 수 있습니다.</li>
+            </ul>
+            
+            <p style="margin: 10px 0;"><strong>3. 선형 회귀의 특성:</strong></p>
+            <ul style="margin: 5px 0 15px 20px; padding: 0;">
+                <li>선형 회귀는 최소 제곱법으로 주어진 데이터에 대해 최적의 선을 찾습니다.</li>
+                <li>학습 데이터에 대해서는 항상 최적의 선을 찾으므로, 학습 데이터로 평가하면 높은 R²가 나올 수 있습니다.</li>
+                <li>하지만 이것이 모델의 실제 성능을 나타내는 것은 아닙니다.</li>
+            </ul>
+            
+            <p style="margin: 15px 0 5px 0;"><strong>✅ 해결 방법:</strong></p>
+            <ul style="margin: 5px 0 0 20px; padding: 0;">
+                <li><strong>검증 데이터 분리:</strong> 학습 데이터와 검증 데이터를 분리하여, 모델이 보지 못한 데이터로 성능을 평가합니다.</li>
+                <li><strong>더 많은 데이터:</strong> 데이터가 많을수록 모델의 일반화 성능이 향상됩니다.</li>
+                <li><strong>교차 검증:</strong> 여러 번 데이터를 나누어 검증하여 더 신뢰할 수 있는 성능 평가를 할 수 있습니다.</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}
 

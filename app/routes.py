@@ -216,6 +216,8 @@ def predict():
     selected_year = request.form.get('year') if request.method == 'POST' else request.args.get('year')
     prediction_result = None
     predicted_year = None
+    metrics = None
+    avg_metrics = None
     
     # 최소 연도 계산 (시스템 날짜의 내년도)
     current_year = datetime.now().year
@@ -238,8 +240,8 @@ def predict():
                     # 데이터 준비
                     pivot, target_df = service.scikit()
                     
-                    # 모델 학습
-                    model, COMMON_IDS, TARGET_IDS = service.train_model(pivot, target_df)
+                    # 모델 학습 (성능 지표 포함)
+                    model, COMMON_IDS, TARGET_IDS, metrics, avg_metrics = service.train_model(pivot, target_df)
                     
                     # 예측 수행 (연도 전달)
                     prediction_result = service.predict_company(model, pivot, selected_corp, COMMON_IDS, TARGET_IDS, target_year=year_int)
@@ -260,4 +262,6 @@ def predict():
                           selected_year=selected_year,
                           min_year=min_year,
                           prediction_result=prediction_result,
-                          predicted_year=predicted_year)
+                          predicted_year=predicted_year,
+                          metrics=metrics,
+                          avg_metrics=avg_metrics)
