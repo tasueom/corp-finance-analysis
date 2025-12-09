@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    재무 지표 예측
+{% endblock %}
+
+{% block content %}
+<h2>재무 지표 예측 (머신러닝)</h2>
+<form method="POST" id="predictForm">
+    <label>기업 선택:</label>
+    <select name="corp" id="corpSelect" onchange="document.getElementById('predictForm').submit()">
+        <option value="" disabled hidden {% if not selected_corp %}selected{% endif %}>기업선택</option>
+        {% for corp in corp_list %}
+            <option value="{{ corp }}" {% if selected_corp==corp %}selected{% endif %}>{{ corp }}</option>
+        {% endfor %}
+    </select>
+    
+    {% if selected_corp %}
+    <br><br>
+    <label>예측 연도:</label>
+    <input type="number" 
+           name="year" 
+           id="yearInput" 
+           value="{{ selected_year if selected_year else '' }}"
+           placeholder="{{ min_year }}년 이상 입력"
+           style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 150px;">
+    <button type="submit" name="predict_btn" value="predict" style="margin-left: 10px;">예측하기</button>
+    {% endif %}
+</form>
+
+{% if prediction_result and selected_corp and predicted_year %}
+<div style="margin-top: 30px;">
+    <h3>{{ selected_corp }} {{ predicted_year }}년 예측값</h3>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+        <thead>
+            <tr>
+                <th>재무 지표</th>
+                <th>예측 금액</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key, value in prediction_result.items() %}
+            <tr>
+                <td><strong>{{ key }}</strong></td>
+                <td>{{ "{:,}".format(value) }}원</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}
+

@@ -169,8 +169,9 @@ def chart1_data(corp):
 @app.route('/chart2_data/<corp>/<year>')
 def chart2_data(corp, year):
     data = db.get_account_data_by_year(corp, year)
-    accounts = [row[0] for row in data]
-    amounts = [row[1] for row in data]
+    # row[0]: account_id (로직용), row[1]: account_nm (표시용), row[2]: amount
+    accounts = [row[1] for row in data]  # account_nm만 표시
+    amounts = [row[2] for row in data]   # amount
     return jsonify({'accounts': accounts, 'amounts': amounts})
 
 @app.route("/export_csv")
@@ -204,3 +205,59 @@ def export_json():
         download_name="재무상태표.json",
         mimetype="application/json"
     )
+
+@app.route("/predict", methods=['GET', 'POST'])
+def predict():
+    """머신러닝 모델을 사용한 재무 지표 예측"""
+    from datetime import datetime
+    
+    corp_list = [row[0] for row in db.get_corp_list()]
+    selected_corp = request.form.get('corp') if request.method == 'POST' else request.args.get('corp')
+    selected_year = request.form.get('year') if request.method == 'POST' else request.args.get('year')
+    prediction_result = None
+    predicted_year = None
+    
+    # 최소 연도 계산 (시스템 날짜의 내년도)
+    current_year = datetime.now().year
+    min_year = current_year + 1
+    
+    # 예측하기 버튼이 눌렸을 때만 연도 검사 및 예측 수행
+    predict_btn = request.form.get('predict_btn')
+    
+    if selected_corp and predict_btn == 'predict':
+        # 예측하기 버튼을 눌렀을 때만 연도 검사
+        if not selected_year:
+            flash('예측 연도를 입력해주세요.', 'error')
+        else:
+            try:
+                # 연도 유효성 검사
+                year_int = int(selected_year)
+                if year_int < min_year:
+                    flash(f'예측 연도는 {min_year}년 이상이어야 합니다.', 'error')
+                else:
+                    # 데이터 준비
+                    pivot, target_df = service.scikit()
+                    
+                    # 모델 학습
+                    model, COMMON_IDS, TARGET_IDS = service.train_model(pivot, target_df)
+                    
+                    # 예측 수행 (연도 전달)
+                    prediction_result = service.predict_company(model, pivot, selected_corp, COMMON_IDS, TARGET_IDS, target_year=year_int)
+                    predicted_year = year_int
+                    
+            except ValueError as e:
+                # 숫자가 아닌 경우 또는 다른 ValueError
+                if 'invalid literal' in str(e) or 'could not convert' in str(e):
+                    flash('올바른 연도를 입력해주세요.', 'error')
+                else:
+                    flash(str(e), 'error')
+            except Exception as e:
+                flash(f'예측 중 오류가 발생했습니다: {str(e)}', 'error')
+    
+    return render_template('predict.html',
+                          corp_list=corp_list,
+                          selected_corp=selected_corp,
+                          selected_year=selected_year,
+                          min_year=min_year,
+                          prediction_result=prediction_result,
+                          predicted_year=predicted_year)
