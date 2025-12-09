@@ -8,6 +8,10 @@ import math
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
+from app import db
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 # .env 파일 로드 (명시적으로 경로 지정 및 여러 경로 시도)
 base_dir = Path(__file__).parent.parent
@@ -551,7 +555,6 @@ def prepare_data_for_insert(corp_name):
         latest_year_to_insert = int(df['year'].max())
         
         # DB에서 해당 기업 코드의 최근 연도 확인 (db 모듈 import 필요)
-        from app import db
         db_latest_year = db.get_latest_year_by_corp_code(corp_code)
         
         # 기존 데이터가 있고 최근 연도가 같으면 중복 메시지
@@ -622,11 +625,11 @@ def export_data_to_csv():
             - df: CSV로 변환할 DataFrame
             - columns: 컬럼 이름 리스트
     """
-    from app import db
     rows = db.get_all_data()
     
     df = pd.DataFrame(rows, columns=[
         "기업 이름",
+        "계정과목 코드",
         "회계 항목명",
         "금액",
         "년도"
@@ -641,11 +644,11 @@ def export_data_to_json():
     Returns:
         str: JSON 문자열 (UTF-8 인코딩)
     """
-    from app import db
     rows = db.get_all_data()
     
     df = pd.DataFrame(rows, columns=[
         "기업 이름",
+        "계정과목 코드",
         "회계 항목명",
         "금액",
         "년도"
@@ -653,3 +656,262 @@ def export_data_to_json():
     
     json_str = df.to_json(force_ascii=False, orient="records", indent=4)
     return json_str
+
+def scikit():
+    rows = db.get_all_data()
+    
+    if not rows:
+        raise ValueError("저장된 재무 데이터가 없습니다. 먼저 기업 데이터를 저장해주세요.")
+    
+    df = pd.DataFrame(rows, columns=["corp_name", "account_id", "account_nm", "amount", "year"])
+    
+    # account_id가 None인 데이터 제거
+    df = df[df["account_id"].notna()].copy()
+    
+    if df.empty:
+        raise ValueError("계정과목 코드가 있는 데이터가 없습니다.")
+    
+    TARGET_IDS = [
+        "ifrs-full_Assets",      # 자산총계
+        "ifrs-full_Equity",      # 자본총계
+        "ifrs-full_Liabilities"  # 부채총계
+    ]
+
+    # ✅ 입력값(Feature) 계정 ID
+    COMMON_IDS = [
+        "ifrs-full_CurrentAssets",
+        "ifrs-full_NoncurrentAssets",
+        "ifrs-full_CashAndCashEquivalents",
+        "ifrs-full_Inventories",
+        "ifrs-full_PropertyPlantAndEquipment",
+        "ifrs-full_IntangibleAssetsAndGoodwill",
+        "ifrs-full_CurrentTradeReceivables",
+        "ifrs-full_OtherCurrentAssets",
+
+        "ifrs-full_CurrentLiabilities",
+        "ifrs-full_NoncurrentLiabilities",
+        "ifrs-full_LongtermBorrowings",
+        "ifrs-full_CurrentProvisions",
+        "ifrs-full_OtherCurrentLiabilities",
+        "ifrs-full_DeferredTaxLiabilities",
+
+        "ifrs-full_IssuedCapital",
+        "ifrs-full_RetainedEarnings",
+        "ifrs-full_SharePremium",
+        "ifrs-full_NoncontrollingInterests"
+    ]
+
+    # ✅ 타겟 데이터 (정답)
+    target_df = df[df["account_id"].isin(TARGET_IDS)]
+
+    # ✅ 학습 데이터 (입력값)
+    feature_df = df[df["account_id"].isin(COMMON_IDS)]
+    
+    if target_df.empty:
+        raise ValueError("목표 계정 ID(자산총계, 자본총계, 부채총계) 데이터가 없습니다.")
+    
+    if feature_df.empty:
+        raise ValueError("입력 계정 ID 데이터가 없습니다.")
+
+    # ✅ Pivot 생성 (account_id 기준)
+    pivot = feature_df.pivot_table(
+        index=["corp_name","year"],
+        columns="account_id",
+        values="amount",
+        aggfunc="sum"
+    ).fillna(0).reset_index()
+    
+    return pivot, target_df
+
+def train_model(pivot, target_df):
+    # ✅ 타겟 pivot (account_id 기준)
+    target_pivot = target_df.pivot_table(
+        index=["corp_name","year"],
+        columns="account_id",
+        values="amount",
+        aggfunc="sum"
+    ).reset_index()
+
+    # ✅ feature + target merge
+    train_df = pd.merge(pivot, target_pivot, on=["corp_name","year"])
+    
+    # 데이터 검증
+    if train_df.empty:
+        raise ValueError("학습할 데이터가 없습니다. 재무 데이터를 먼저 저장해주세요.")
+
+    # ✅ Feature 계정 ID
+    COMMON_IDS = [
+        "ifrs-full_CurrentAssets",
+        "ifrs-full_NoncurrentAssets",
+        "ifrs-full_CashAndCashEquivalents",
+        "ifrs-full_Inventories",
+        "ifrs-full_PropertyPlantAndEquipment",
+        "ifrs-full_IntangibleAssetsAndGoodwill",
+        "ifrs-full_CurrentTradeReceivables",
+        "ifrs-full_OtherCurrentAssets",
+
+        "ifrs-full_CurrentLiabilities",
+        "ifrs-full_NoncurrentLiabilities",
+        "ifrs-full_LongtermBorrowings",
+        "ifrs-full_CurrentProvisions",
+        "ifrs-full_OtherCurrentLiabilities",
+        "ifrs-full_DeferredTaxLiabilities",
+
+        "ifrs-full_IssuedCapital",
+        "ifrs-full_RetainedEarnings",
+        "ifrs-full_SharePremium",
+        "ifrs-full_NoncontrollingInterests"
+    ]
+
+    # ✅ Target 계정 ID
+    TARGET_IDS = [
+        "ifrs-full_Assets",
+        "ifrs-full_Equity",
+        "ifrs-full_Liabilities"
+    ]
+
+    # 필수 계정 ID 검증
+    missing_feature_ids = [cid for cid in COMMON_IDS if cid not in train_df.columns]
+    missing_target_ids = [tid for tid in TARGET_IDS if tid not in train_df.columns]
+    
+    if missing_feature_ids or missing_target_ids:
+        error_msg = "필수 계정 ID가 없습니다. "
+        if missing_feature_ids:
+            error_msg += f"입력 계정: {', '.join(missing_feature_ids[:3])}{'...' if len(missing_feature_ids) > 3 else ''}. "
+        if missing_target_ids:
+            error_msg += f"목표 계정: {', '.join(missing_target_ids)}."
+        raise ValueError(error_msg)
+
+    # ✅ 입력(X), 정답(y)
+    X = train_df[COMMON_IDS]
+    y = train_df[TARGET_IDS]
+    
+    # NaN 값 확인
+    if X.isna().any().any() or y.isna().any().any():
+        raise ValueError("데이터에 결측값이 있습니다. 모든 계정 ID의 데이터가 필요합니다.")
+
+    # ✅ 모델 학습
+    model = LinearRegression()
+    model.fit(X, y)
+
+    return model, COMMON_IDS, TARGET_IDS
+
+def predict_company(model, pivot, corp_name, COMMON_IDS, TARGET_IDS, target_year=None):
+    """
+    기업의 재무 지표를 예측합니다.
+    
+    Args:
+        model: 학습된 모델
+        pivot: 피벗 테이블 데이터
+        corp_name: 기업명
+        COMMON_IDS: 입력 계정 ID 리스트
+        TARGET_IDS: 목표 계정 ID 리스트
+        target_year: 예측할 연도 (None이면 최신 연도 기반)
+    
+    Returns:
+        dict: 예측 결과
+    """
+    # 기업 데이터 필터링 및 검증
+    corp_data = pivot[pivot["corp_name"] == corp_name].copy()
+    if corp_data.empty:
+        raise ValueError(f"기업 '{corp_name}'의 데이터를 찾을 수 없습니다.")
+    
+    # 연도순 정렬
+    corp_data = corp_data.sort_values("year")
+    latest = corp_data.iloc[-1]
+    latest_year = int(latest["year"])
+    
+    # 필수 계정 ID 확인
+    missing_ids = [cid for cid in COMMON_IDS if cid not in pivot.columns]
+    if missing_ids:
+        error_msg = f"필수 계정 ID가 없습니다: {', '.join(missing_ids[:3])}"
+        if len(missing_ids) > 3:
+            error_msg += f" 외 {len(missing_ids) - 3}개"
+        raise ValueError(error_msg)
+    
+    # NaN 값 확인 (pandas의 isna() 사용)
+    X_input_series = latest[COMMON_IDS]
+    if X_input_series.isna().any():
+        missing_values = [cid for cid in COMMON_IDS if pd.isna(X_input_series[cid])]
+        raise ValueError(f"기업 '{corp_name}'의 필수 계정 데이터가 없습니다: {', '.join(missing_values[:3])}")
+    
+    # 숫자형으로 변환
+    X_input_base = pd.to_numeric(X_input_series, errors='coerce').values
+    if np.isnan(X_input_base).any():
+        missing_values = [COMMON_IDS[i] for i in range(len(COMMON_IDS)) if np.isnan(X_input_base[i])]
+        raise ValueError(f"기업 '{corp_name}'의 필수 계정 데이터가 없습니다: {', '.join(missing_values[:3])}")
+    
+    # 연도별 입력값 조정 (과거 추세 기반)
+    if target_year and target_year > latest_year:
+        # 연도 차이 계산
+        year_diff = target_year - latest_year
+        
+        # 과거 데이터가 2년 이상 있는 경우 연평균 성장률 계산
+        if len(corp_data) >= 2:
+            # 최신 연도와 이전 연도 데이터
+            prev_year_data = corp_data.iloc[-2]
+            prev_X = pd.to_numeric(prev_year_data[COMMON_IDS], errors='coerce').values
+            
+            # 연평균 성장률 계산 (CAGR)
+            # 성장률 = (최신값 / 이전값) ^ (1/연도차이) - 1
+            growth_rates = np.where(
+                prev_X > 0,
+                np.power(X_input_base / prev_X, 1.0 / (latest_year - int(prev_year_data["year"]))) - 1,
+                0  # 이전값이 0이면 성장률 0
+            )
+            
+            # 예측 연도까지의 성장률 적용
+            # 미래값 = 현재값 * (1 + 성장률) ^ 연도차이
+            X_input_adjusted = X_input_base * np.power(1 + growth_rates, year_diff)
+        else:
+            # 데이터가 부족하면 최신값 그대로 사용
+            X_input_adjusted = X_input_base
+    else:
+        # target_year가 없거나 과거 연도면 최신값 사용
+        X_input_adjusted = X_input_base
+    
+    X_input = X_input_adjusted.reshape(1, -1)
+
+    pred = model.predict(X_input)[0]
+
+    ID_TO_NAME = {
+        "ifrs-full_Assets": "자산총계",
+        "ifrs-full_Equity": "자본총계",
+        "ifrs-full_Liabilities": "부채총계"
+    }
+
+    # 예측값 추출 (소수점 유지)
+    predicted_assets = pred[0]
+    predicted_equity = pred[1]
+    predicted_liabilities = pred[2]
+    
+    # 회계 방정식: 자산 = 부채 + 자본
+    # 부채와 자본의 합 계산
+    liabilities_plus_equity = predicted_liabilities + predicted_equity
+    
+    # 자산을 부채+자본 합으로 재조정 (회계 방정식 맞추기)
+    # 또는 부채와 자본의 비율을 유지하면서 합이 자산이 되도록 조정
+    if abs(predicted_assets - liabilities_plus_equity) > 0.01:  # 차이가 0.01 이상이면 조정
+        # 방법 1: 자산을 부채+자본 합으로 재조정
+        adjusted_assets = liabilities_plus_equity
+        
+        # 방법 2: 부채와 자본의 비율을 유지하면서 합이 자산이 되도록 조정
+        # (현재는 방법 1 사용)
+        # total = predicted_liabilities + predicted_equity
+        # if total > 0:
+        #     ratio_liabilities = predicted_liabilities / total
+        #     ratio_equity = predicted_equity / total
+        #     adjusted_liabilities = predicted_assets * ratio_liabilities
+        #     adjusted_equity = predicted_assets * ratio_equity
+        # else:
+        #     adjusted_liabilities = predicted_liabilities
+        #     adjusted_equity = predicted_equity
+    else:
+        adjusted_assets = predicted_assets
+    
+    # 정수로 변환 (소수점 버림)
+    return {
+        ID_TO_NAME[TARGET_IDS[0]]: int(adjusted_assets),
+        ID_TO_NAME[TARGET_IDS[1]]: int(predicted_equity),
+        ID_TO_NAME[TARGET_IDS[2]]: int(predicted_liabilities),
+    }
