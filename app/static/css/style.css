@@ -95,6 +95,17 @@ th {
 td {
     padding: 10px 12px;
     border-bottom: 1px solid #eee;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    white-space: normal;
+    max-width: 0;
+}
+
+/* 계정과목 코드 등 긴 텍스트가 있는 셀의 줄바꿈 처리 */
+table td {
+    overflow-wrap: anywhere;
+    hyphens: auto;
 }
 
 tr:hover {
