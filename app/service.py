@@ -360,6 +360,7 @@ def get_finance_dataframe_10years(corp_name):
     추출 필드:
     - 기업 이름 (corp_name)
     - 기업 코드 (corp_code)
+    - 계정과목 코드 (account_id)
     - 계정과목 이름 (account_nm)
     - 금액 (amount)
     - 연도 (year)
@@ -368,7 +369,7 @@ def get_finance_dataframe_10years(corp_name):
         corp_name (str): 기업 이름
         
     Returns:
-        pd.DataFrame: 추출된 재무제표 데이터 (corp_name, corp_code, account_nm, amount, year)
+        pd.DataFrame: 추출된 재무제표 데이터 (corp_name, corp_code, account_id, account_nm, amount, year)
         재무상태표(BS) 데이터만 포함되며, 최근 10년치 데이터가 포함됩니다.
     """
     if not corp_name:
@@ -416,7 +417,7 @@ def get_finance_dataframe_10years(corp_name):
                 df = df[df['sj_div'] == 'BS'].copy()
             
             # 필요한 컬럼 확인
-            required_cols = ['corp_code', 'account_nm']
+            required_cols = ['corp_code', 'account_id', 'account_nm']
             if not all(col in df.columns for col in required_cols):
                 continue
             
@@ -471,10 +472,10 @@ def get_finance_dataframe_10years(corp_name):
     result_df['corp_name'] = corp_name
     
     # 중복 제거 (같은 계정과목, 같은 연도가 여러 번 나타날 수 있음)
-    result_df = result_df.drop_duplicates(subset=['corp_code', 'account_nm', 'year'], keep='first')
+    result_df = result_df.drop_duplicates(subset=['corp_code', 'account_id', 'account_nm', 'year'], keep='first')
     
-    # 컬럼 순서 재정렬: 기업 이름, 기업 코드, 계정과목 이름, 금액, 연도
-    column_order = ['corp_name', 'corp_code', 'account_nm', 'amount', 'year']
+    # 컬럼 순서 재정렬: 기업 이름, 기업 코드, 계정과목 코드, 계정과목 이름, 금액, 연도
+    column_order = ['corp_name', 'corp_code', 'account_id', 'account_nm', 'amount', 'year']
     result_df = result_df[column_order]
     
     # 최신 연도(시작 연도)의 계정과목 순서를 기준으로 정렬
@@ -566,7 +567,7 @@ def prepare_data_for_insert(corp_name):
             is_update = True
         
         # DataFrame을 튜플 리스트로 변환 (db.insert_data에 맞는 형식)
-        # 컬럼 순서: corp_name, corp_code, account_nm, amount, year
+        # 컬럼 순서: corp_name, corp_code, account_id, account_nm, amount, year
         insert_values = []
         for row in df.to_dict('records'):
             # NaN 값 처리
@@ -591,9 +592,14 @@ def prepare_data_for_insert(corp_name):
                 except (ValueError, TypeError):
                     year_value = None
             
+            # account_id 처리 (없으면 None)
+            account_id = row.get('account_id', '')
+            account_id_value = account_id if account_id else None
+            
             insert_values.append((
                 row.get('corp_name', ''),
                 row.get('corp_code', ''),
+                account_id_value,
                 row.get('account_nm', ''),
                 amount_value,
                 year_value

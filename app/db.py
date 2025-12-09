@@ -80,6 +80,7 @@ def create_table():
                 id int primary key auto_increment,
                 corp_name varchar(100),
                 corp_code varchar(20),
+                account_id varchar(50),
                 account_nm varchar(100),
                 amount bigint,
                 year int
@@ -147,7 +148,7 @@ def insert_data(data):
     try:
         conn = get_conn()
         cursor = conn.cursor()
-        cursor.executemany(f"INSERT INTO {TABLE_NAME} (corp_name, corp_code, account_nm, amount, year) VALUES (%s, %s, %s, %s, %s)", data)
+        cursor.executemany(f"INSERT INTO {TABLE_NAME} (corp_name, corp_code, account_id, account_nm, amount, year) VALUES (%s, %s, %s, %s, %s, %s)", data)
         conn.commit()
         return True
     except mysql.connector.Error as err:
