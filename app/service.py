@@ -592,9 +592,12 @@ def prepare_data_for_insert(corp_name):
                 except (ValueError, TypeError):
                     year_value = None
             
-            # account_id 처리 (없으면 None)
+            # account_id 처리 (NaN이면 None)
             account_id = row.get('account_id', '')
-            account_id_value = account_id if account_id else None
+            if account_id is None or (isinstance(account_id, float) and math.isnan(account_id)) or account_id == '':
+                account_id_value = None
+            else:
+                account_id_value = str(account_id)
             
             insert_values.append((
                 row.get('corp_name', ''),
