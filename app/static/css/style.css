@@ -315,3 +315,159 @@ tr:hover {
     color: white;
 }
 
+/* 예측 페이지 스타일 */
+.predict-form-section {
+    margin: 20px 0;
+}
+
+.predict-year-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 150px;
+}
+
+.predict-submit-btn {
+    margin-left: 10px;
+}
+
+.predict-result-section {
+    margin-top: 30px;
+}
+
+.predict-result-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.metrics-section {
+    margin-top: 40px;
+}
+
+.metrics-subsection {
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
+.metrics-subsection h4 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #ddd;
+}
+
+.metrics-table thead tr {
+    background-color: #f5f5f5;
+}
+
+.metrics-table th {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+    background-color: #f5f5f5;
+}
+
+.metrics-table th.text-right {
+    text-align: right;
+}
+
+.metrics-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+.metrics-table td.text-right {
+    text-align: right;
+}
+
+.metrics-detail-section {
+    margin-top: 20px;
+}
+
+.metrics-detail-section h4 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.metrics-info-box {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-left: 4px solid #4CAF50;
+    border-radius: 4px;
+}
+
+.metrics-info-box h4 {
+    margin-top: 0;
+    color: #333;
+}
+
+.metrics-info-box ul {
+    margin: 10px 0;
+    padding-left: 20px;
+    color: #666;
+}
+
+.metrics-info-box li {
+    margin: 5px 0;
+}
+
+.metrics-info-box p {
+    margin: 8px 0 0 0;
+    color: #666;
+    line-height: 1.6;
+}
+
+.metrics-warning-box {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 4px;
+}
+
+.metrics-info-blue-box {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #e7f3ff;
+    border-left: 4px solid #2196F3;
+    border-radius: 4px;
+}
+
+.metrics-explanation-box {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 4px;
+}
+
+.metrics-explanation-box h4 {
+    margin-top: 0;
+    color: #333;
+}
+
+.metrics-explanation-box div {
+    color: #666;
+    line-height: 1.6;
+}
+
+.metrics-explanation-box p {
+    margin: 10px 0;
+}
+
+.metrics-explanation-box ul {
+    margin: 5px 0 15px 20px;
+    padding: 0;
+}
+
+.metrics-explanation-box li {
+    margin: 3px 0;
+}
+
