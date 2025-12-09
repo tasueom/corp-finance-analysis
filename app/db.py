@@ -230,7 +230,7 @@ def get_account_data_by_year(corp_name, year):
         conn = get_conn()
         cursor = conn.cursor()
         cursor.execute(f"""
-            SELECT account_nm, amount FROM {TABLE_NAME}
+            SELECT account_id, account_nm, amount FROM {TABLE_NAME}
             WHERE corp_name = %s AND year = %s
         """, (corp_name, year))
         result = cursor.fetchall()
@@ -252,7 +252,7 @@ def get_all_data():
         conn = get_conn()
         cursor = conn.cursor()
         cursor.execute(f"""
-                        SELECT corp_name, account_nm, amount, year FROM {TABLE_NAME}
+                        SELECT corp_name, account_id, account_nm, amount, year FROM {TABLE_NAME}
                         ORDER BY corp_name, year
                         """)
         result = cursor.fetchall()
