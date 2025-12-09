@@ -80,7 +80,7 @@ def create_table():
                 id int primary key auto_increment,
                 corp_name varchar(100),
                 corp_code varchar(20),
-                account_id varchar(50),
+                account_id varchar(300),
                 account_nm varchar(100),
                 amount bigint,
                 year int
