@@ -1146,3 +1146,85 @@ def make_chart_data(compare_list):
         chart_data[col] = result[col].tolist()
 
     return chart_data
+
+def get_amount_by_account_id(rows, account_id):
+    """account_id로 금액을 조회하는 헬퍼 함수"""
+    if account_id is None:
+        return None
+    for row in rows:
+        if row[0] == account_id:  # row[0]은 account_id
+            return row[2]  # row[2]는 amount
+    return None
+
+def find_account_id_by_name(rows, account_name):
+    """계정명으로 account_id를 찾는 헬퍼 함수"""
+    for row in rows:
+        if row[1] == account_name:  # row[1]은 account_nm
+            return row[0]  # row[0]은 account_id
+    return None
+
+def calculate_financial_indicators(rows):
+    """
+    재무지표를 계산합니다.
+    
+    Args:
+        rows: 계정 데이터 리스트 [(account_id, account_nm, amount), ...]
+        
+    Returns:
+        dict: 재무지표 딕셔너리
+            - current_ratio: 유동비율 (%)
+            - debt_ratio: 부채비율 (%) - 부채총계/자산총계
+            - equity_ratio: 자기자본비율 (%) - 자본총계/자산총계
+            - quick_ratio: 당좌비율 (%) - (유동자산-재고자산)/유동부채
+            - debt_to_equity: 부채자본비율 (%) - 부채총계/자본총계
+    """
+    if not rows:
+        return {
+            'current_ratio': None,
+            'debt_ratio': None,
+            'equity_ratio': None,
+            'quick_ratio': None,
+            'debt_to_equity': None
+        }
+    
+    # 계정명으로 account_id 찾기 (동적 매핑)
+    account_ids = {
+        '유동자산': find_account_id_by_name(rows, '유동자산'),
+        '유동부채': find_account_id_by_name(rows, '유동부채'),
+        '부채총계': find_account_id_by_name(rows, '부채총계'),
+        '자본총계': find_account_id_by_name(rows, '자본총계'),
+        '자산총계': find_account_id_by_name(rows, '자산총계'),
+        '재고자산': find_account_id_by_name(rows, '재고자산')
+    }
+    
+    # ID로 금액 조회
+    try:
+        current_assets = get_amount_by_account_id(rows, account_ids['유동자산'])
+        current_liabilities = get_amount_by_account_id(rows, account_ids['유동부채'])
+        total_debt = get_amount_by_account_id(rows, account_ids['부채총계'])
+        total_equity = get_amount_by_account_id(rows, account_ids['자본총계'])
+        total_assets = get_amount_by_account_id(rows, account_ids['자산총계'])
+        inventory = get_amount_by_account_id(rows, account_ids['재고자산'])
+        
+        indicators = {
+            'current_ratio': round(current_assets / current_liabilities * 100, 2) 
+                            if current_assets is not None and current_liabilities is not None and current_liabilities != 0 else None,
+            'debt_ratio': round(total_debt / total_assets * 100, 2) 
+                        if total_debt is not None and total_assets is not None and total_assets != 0 else None,
+            'equity_ratio': round(total_equity / total_assets * 100, 2) 
+                           if total_equity is not None and total_assets is not None and total_assets != 0 else None,
+            'quick_ratio': round((current_assets - (inventory if inventory is not None else 0)) / current_liabilities * 100, 2) 
+                          if current_assets is not None and current_liabilities is not None and current_liabilities != 0 else None,
+            'debt_to_equity': round(total_debt / total_equity * 100, 2) 
+                             if total_debt is not None and total_equity is not None and total_equity != 0 else None
+        }
+    except (ZeroDivisionError, TypeError):
+        indicators = {
+            'current_ratio': None,
+            'debt_ratio': None,
+            'equity_ratio': None,
+            'quick_ratio': None,
+            'debt_to_equity': None
+        }
+    
+    return indicators

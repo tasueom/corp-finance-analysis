@@ -539,6 +539,68 @@ tr:hover {
     min-width: 180px; /* 핵심: 비교 컬럼들이 숨지 않게 강제폭 지정 */
 }
 
+/* 통계표 (fin-table) 스타일 */
+.fin-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.fin-table th {
+    width: 30%; /* 1열 폭 줄임 */
+    text-align: left;
+    position: relative;
+}
+
+.fin-table td {
+    width: 70%; /* 2열 폭 늘림 */
+    text-align: right;
+}
+
+/* 툴팁 스타일 */
+.tooltip-trigger {
+    cursor: help;
+    position: relative;
+}
+
+.tooltip-trigger .tooltip-text {
+    visibility: hidden;
+    width: 300px;
+    background-color: #333;
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 1000;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -150px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: normal;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.tooltip-trigger .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+.tooltip-trigger:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
 /* ============================
     OCR 이미지 크기 고정
 ============================ */

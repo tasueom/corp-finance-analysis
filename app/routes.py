@@ -96,6 +96,7 @@ def view():
     corp_list = db.get_corp_list()              # 기업 리스트 가져오기
     years = []
     rows = []
+    indicators = None
     
     # POST 요청에서 선택값 가져오기
     if request.method == "POST":
@@ -138,6 +139,9 @@ def view():
         else:
             selected_corp = None
             selected_year = None
+    
+    # 재무지표 계산 (POST와 GET 모두에서 rows가 있으면 계산)
+    indicators = service.calculate_financial_indicators(rows) if rows else None
 
     return render_template(
         "view.html",
@@ -145,7 +149,8 @@ def view():
         years=years,
         rows=rows,
         selected_corp=selected_corp,
-        selected_year=selected_year
+        selected_year=selected_year,
+        indicators=indicators
     )
 
 @app.route('/chart', methods=['GET', 'POST'])

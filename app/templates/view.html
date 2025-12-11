@@ -51,6 +51,39 @@
 
 <h3>{{ selected_corp }} — {{ selected_year }}년 재무상태표</h3>
 
+<table class="fin-table" id="financeTable">
+    <tr>
+        <th class="tooltip-trigger">유동비율
+            <span class="tooltip-text">유동자산을 유동부채로 나눈 비율로, 단기 유동성 지표입니다. 100% 이상이면 단기 채무 상환 능력이 양호합니다.</span>
+        </th>
+        <td>{{ indicators.current_ratio if indicators.current_ratio is not none else '-' }} %</td>
+    </tr>
+    <tr>
+        <th class="tooltip-trigger">당좌비율
+            <span class="tooltip-text">(유동자산 - 재고자산)을 유동부채로 나눈 비율로, 유동비율보다 엄격한 유동성 지표입니다. 재고를 제외한 순 유동자산으로 단기 채무를 상환할 수 있는 능력을 나타냅니다.</span>
+        </th>
+        <td>{{ indicators.quick_ratio if indicators.quick_ratio is not none else '-' }} %</td>
+    </tr>
+    <tr>
+        <th class="tooltip-trigger">부채비율
+            <span class="tooltip-text">부채총계를 자산총계로 나눈 비율로, 기업의 재무 안정성을 나타냅니다. 낮을수록 재무 안정성이 높습니다.</span>
+        </th>
+        <td>{{ indicators.debt_ratio if indicators.debt_ratio is not none else '-' }} %</td>
+    </tr>
+    <tr>
+        <th class="tooltip-trigger">부채자본비율
+            <span class="tooltip-text">부채총계를 자본총계로 나눈 비율로, 기업의 재무 레버리지를 나타냅니다. 높을수록 부채 의존도가 높습니다.</span>
+        </th>
+        <td>{{ indicators.debt_to_equity if indicators.debt_to_equity is not none else '-' }} %</td>
+    </tr>
+    <tr>
+        <th class="tooltip-trigger">자기자본비율
+            <span class="tooltip-text">자본총계를 자산총계로 나눈 비율로, 기업의 자립도를 나타냅니다. 높을수록 자기 자본으로 운영하는 비율이 높아 재무 안정성이 높습니다.</span>
+        </th>
+        <td>{{ indicators.equity_ratio if indicators.equity_ratio is not none else '-' }} %</td>
+    </tr>
+</table>
+
 <table id="data-table">
     <thead>
         <tr>
