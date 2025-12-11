@@ -472,7 +472,7 @@ tr:hover {
 }
 
 /* ============================
-   비교표 전용 테이블 스타일 (최종 안정화 버전)
+   비교표 전용 테이블 스타일 (배치만 유지)
 ============================ */
 
 /* 테이블 전체 너비 자동 균등화 */
@@ -482,40 +482,20 @@ tr:hover {
     border-collapse: collapse;
 }
 
-/* 셀 기본 스타일 */
+/* 셀 정렬 */
 .compare-table td {
     text-align: right;
-    white-space: nowrap;
-    font-size: 14px;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* 계정명 왼쪽 정렬 */
 .compare-table td:first-child {
     text-align: left;
-    font-weight: 600;
 }
 
 /* 스크롤 컨테이너 */
 .table-container {
     overflow-x: auto;
     padding-bottom: 5px;
-    background: #fff;
-}
-
-/* ============================
-   헤더(TH) 스타일
-============================ */
-
-/* 기본 헤더 스타일 (모든 비교 컬럼 공통) */
-.compare-table th {
-    background: #34495e !important; /* 진한 파란색 */
-    color: white !important;
-    padding: 10px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
 }
 
 /* ============================
@@ -525,12 +505,9 @@ tr:hover {
 .compare-table td:first-child {
     position: sticky;
     left: 0;
-    background: #f6f6f6 !important; /* 회색 배경 */
-    color: #333 !important;
     z-index: 30;
     min-width: 180px;
     max-width: 180px;
-    box-shadow: 2px 0 4px rgba(0,0,0,0.08);
 }
 
 /* ============================
@@ -542,10 +519,7 @@ tr:hover {
 .compare-table td:last-child {
     position: sticky;
     right: 0;
-    background: #f6f6f6 !important;
-    color: #333 !important;
     z-index: 30;
-    box-shadow: -2px 0 4px rgba(0,0,0,0.08);
 }
 
 /* 끝에서 두 번째 열 (차이 금액) */
@@ -553,10 +527,7 @@ tr:hover {
 .compare-table td:nth-last-child(2) {
     position: sticky;
     right: 120px; /* 마지막 컬럼 너비 고려 */
-    background: #f6f6f6 !important;
-    color: #333 !important;
     z-index: 30;
-    box-shadow: -2px 0 4px rgba(0,0,0,0.06);
 }
 
 /* ============================
@@ -566,10 +537,4 @@ tr:hover {
 /* 첫번째(th:first-child), 마지막(th:last-child), 끝에서 2번째 제외한 모든 비교헤더 */
 .compare-table th:not(:first-child):not(:last-child):not(:nth-last-child(2)) {
     min-width: 180px; /* 핵심: 비교 컬럼들이 숨지 않게 강제폭 지정 */
-}
-
-/* Hover 유지 */
-.compare-table tr:hover td,
-.compare-table tr:hover th {
-    background-color: #f8f9fa;
 }
