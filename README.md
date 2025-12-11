@@ -8,14 +8,19 @@ DART(Data Analysis, Retrieval and Transfer system) Open API를 활용하여 기�
 - 💾 **데이터 저장**: 조회한 재무상태표 데이터를 MySQL 데이터베이스에 저장
 - 📊 **데이터 조회**: 저장된 기업별, 연도별 재무상태표 데이터 조회
 - 📈 **차트 시각화**: 자산총계 추이 및 연도별 계정과목 분포 차트 제공
+- 📊 **재무제표 비교**: 여러 기업의 재무제표를 동시에 비교 분석
+- 🔮 **재무 지표 예측**: 머신러닝을 활용한 재무 지표 예측
+- 📸 **이미지 텍스트 추출**: OCR 기술을 활용한 이미지에서 텍스트 추출 (한국어/영어 지원)
 - 📥 **데이터 내보내기**: CSV, JSON 형식으로 데이터 내보내기
 
 ## 기술 스택
 
 - **Backend**: Python 3.x, Flask
 - **Database**: MySQL
-- **Data Processing**: pandas
+- **Data Processing**: pandas, scikit-learn
 - **API**: DART Open API
+- **OCR**: EasyOCR (한국어/영어 지원)
+- **Image Processing**: PIL/Pillow, NumPy
 - **Frontend**: HTML, CSS, JavaScript (Chart.js)
 
 ## 프로젝트 구조
@@ -32,13 +37,17 @@ team2-corp-anal/
 │   │   ├── index.html
 │   │   ├── search.html
 │   │   ├── view.html
-│   │   └── chart.html
+│   │   ├── chart.html
+│   │   ├── compare.html
+│   │   ├── predict.html
+│   │   └── ocr.html
 │   └── static/              # 정적 파일
 │       ├── css/
 │       │   └── style.css
 │       └── js/
 │           ├── chart.js
-│           └── search.js
+│           ├── search.js
+│           └── compare.js
 ├── app.py                   # 애플리케이션 진입점
 ├── init_db.py               # 데이터베이스 초기화 스크립트
 └── README.md
@@ -60,6 +69,11 @@ pip install mysql-connector-python
 pip install pandas
 pip install python-dotenv
 pip install requests
+pip install easyocr
+pip install pillow
+pip install numpy
+pip install scikit-learn
+pip install opencv-python
 ```
 
 ### 3. 환경 변수 설정
@@ -130,7 +144,41 @@ python app.py
    - **차트 1**: 자산총계 연도별 추이
    - **차트 2**: 선택한 연도의 계정과목별 금액 분포
 
-### 4. 데이터 내보내기
+### 4. 재무제표 비교
+
+1. "비교" 메뉴로 이동
+2. 비교할 기업과 연도 선택 (여러 개 추가 가능)
+3. "비교하기" 버튼 클릭
+4. 비교 결과 테이블 및 차트 확인:
+   - 기업별 계정과목 비교
+   - 차이 금액 및 증감률 표시
+   - 시각적 차트 비교
+
+### 5. 재무 지표 예측
+
+1. "예측" 메뉴로 이동
+2. 기업 선택
+3. 예측할 연도 입력
+4. "예측 실행" 버튼 클릭
+5. 예측 결과 확인:
+   - 예측된 재무 지표 값
+   - 모델 성능 지표 (R², RMSE)
+
+### 6. 이미지 텍스트 추출 (OCR)
+
+1. "이미지 분석" 메뉴로 이동
+2. 이미지 파일 업로드 (JPG, PNG, GIF 등)
+3. "텍스트 추출" 버튼 클릭
+4. 추출된 텍스트 확인:
+   - 업로드된 이미지 미리보기
+   - 추출된 텍스트 목록 표시
+   - 한국어 및 영어 텍스트 인식 지원
+
+**참고**: 
+- 이미지는 서버에 저장되지 않고 메모리에서 처리됩니다 (BytesIO 사용)
+- 첫 실행 시 EasyOCR 모델 다운로드로 인해 시간이 소요될 수 있습니다
+
+### 7. 데이터 내보내기
 
 - "CSV 내보내기": 모든 저장된 데이터를 CSV 파일로 다운로드
 - "JSON 내보내기": 모든 저장된 데이터를 JSON 파일로 다운로드
@@ -145,6 +193,9 @@ python app.py
 | `/search` | GET, POST | 기업 검색 및 재무상태표 조회 페이지 |
 | `/view` | GET, POST | 저장된 데이터 조회 페이지 |
 | `/chart` | GET, POST | 차트 시각화 페이지 |
+| `/compare` | GET, POST | 재무제표 비교 페이지 |
+| `/predict` | GET, POST | 재무 지표 예측 페이지 |
+| `/ocr` | GET, POST | 이미지 텍스트 추출 (OCR) 페이지 |
 | `/insert_data` | POST | 재무상태표 데이터 저장 (리다이렉트) |
 
 ### API 엔드포인트 (JSON/파일 반환)
@@ -154,6 +205,8 @@ python app.py
 | `/api/search_corps` | GET | 검색어로 기업 목록 조회 (JSON) |
 | `/chart1_data/<corp>` | GET | 자산총계 추이 데이터 (JSON) |
 | `/chart2_data/<corp>/<year>` | GET | 연도별 계정과목 데이터 (JSON) |
+| `/chart2_data` | POST | 비교 차트 데이터 (JSON) |
+| `/api/get_years` | GET | 기업별 연도 목록 조회 (JSON) |
 | `/export_csv` | GET | CSV 파일 다운로드 |
 | `/export_json` | GET | JSON 파일 다운로드 |
 
@@ -191,6 +244,27 @@ python app.py
 - 데이터 갱신: 기존 데이터의 최근 연도와 다르면 기존 데이터 삭제 후 새 데이터 저장
 - NaN 값 처리: 결측값은 NULL로 저장
 
+### 재무제표 비교 기능
+
+- 여러 기업의 재무제표를 동시에 비교 분석
+- 차이 금액 및 증감률 자동 계산
+- Sticky 컬럼을 활용한 스크롤 가능한 비교 테이블
+- 시각적 차트 비교 제공
+
+### 재무 지표 예측 기능
+
+- 선형 회귀 모델을 활용한 재무 지표 예측
+- 다중 계정과목 동시 예측 지원
+- 모델 성능 지표 제공 (R², RMSE)
+- 기업별 맞춤 예측 모델
+
+### 이미지 텍스트 추출 (OCR) 기능
+
+- EasyOCR을 활용한 한국어/영어 텍스트 인식
+- 이미지 파일을 메모리에서 처리 (BytesIO 사용)
+- 서버에 파일 저장 없이 즉시 처리
+- Base64 인코딩을 통한 이미지 미리보기 제공
+
 ## 주의사항
 
 1. **API 키**: DART Open API 키가 필요합니다. 무료로 발급받을 수 있지만 일일 호출 제한이 있을 수 있습니다.
@@ -198,6 +272,8 @@ python app.py
 3. **기업 검색**: 검색어만으로도 기업을 찾을 수 있지만, 정확한 기업명을 알고 있으면 더 빠르게 검색할 수 있습니다.
 4. **검색 시간**: 기업 목록 검색 시 DART API에서 전체 기업 코드 목록을 다운로드하므로 초기 검색에 시간이 다소 소요될 수 있습니다.
 5. **데이터 조회 시간**: 10년치 데이터 조회 시 다소 시간이 걸릴 수 있습니다.
+6. **OCR 모델**: EasyOCR 모델이 처음 실행 시 자동으로 다운로드되므로 초기 실행에 시간이 소요될 수 있습니다.
+7. **이미지 처리**: OCR 기능은 이미지를 서버에 저장하지 않고 메모리에서 처리합니다.
 
 ## 문제 해결
 
@@ -216,6 +292,11 @@ python app.py
 - DART API 일일 호출 제한 확인
 - 기업 목록 검색이 느린 경우: DART API에서 전체 기업 코드 목록을 다운로드하므로 첫 검색 시 시간이 걸릴 수 있습니다
 
+### OCR 오류
+- EasyOCR 모델이 다운로드되지 않은 경우: 첫 실행 시 자동으로 다운로드되므로 시간이 소요될 수 있습니다
+- 이미지 파일 형식 확인: JPG, PNG, GIF 등 지원되는 형식인지 확인
+- 메모리 부족: 큰 이미지 파일의 경우 메모리 사용량이 증가할 수 있습니다
+
 ## 라이선스
 
 이 프로젝트는 부트캠프 팀 과제로 제작되었으며, 교육 목적으로만 사용됩니다.
@@ -225,3 +306,5 @@ python app.py
 - [DART Open API 공식 문서](https://opendart.fss.or.kr/guide/main.do)
 - [Flask 공식 문서](https://flask.palletsprojects.com/)
 - [MySQL 공식 문서](https://dev.mysql.com/doc/)
+- [EasyOCR GitHub](https://github.com/JaidedAI/EasyOCR)
+- [scikit-learn 공식 문서](https://scikit-learn.org/)
