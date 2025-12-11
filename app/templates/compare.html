@@ -111,77 +111,9 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const compareBox = document.getElementById("compare-box");
-const addBtn = document.getElementById("add-btn");
-const form = document.getElementById("compare-form");
-let chartInstance = null;
-
-// // 폼 제출
-// form.addEventListener("submit", async (e) => {
-//     e.preventDefault();
-
-//     const rows = compareBox.querySelectorAll(".compare-row");
-//     const data = [];
-
-//     rows.forEach(row => {
-//         const corp = row.querySelector("select[name='corp_name']").value;
-//         const year = row.querySelector("select[name='year']").value;
-//         if(corp && year){
-//             data.push({corp, year});
-//         }
-//     });
-
-//     if(data.length === 0) return alert("기업과 연도를 선택해주세요.");
-
-//     // POST 요청
-//     const res = await fetch("/chart2_data", {
-//         method: "POST",
-//         headers: {"Content-Type": "application/json"},
-//         body: JSON.stringify({data})
-//     });
-
-//     const result = await res.json();
-//     renderChart(result);
-// });
-
-
-// 차트 렌더링
-function renderChart(data){
-    const ctx = document.getElementById('comparisonChart').getContext('2d');
-
-    const datasets = Object.keys(data)
-        .filter(k => k !== "accounts")
-        .map((key, i) => ({
-            label: key,
-            data: data[key],
-            backgroundColor: `hsl(${i * 60 % 360}, 70%, 50%)`
-        }));
-
-    if(chartInstance) chartInstance.destroy(); // 이전 차트 제거
-
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: data.accounts,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: true, text: '기업별 계정 비교' }
-            }
-        }
-    });
-}
-
-// 무조건 있어야함 jsonify가 아닌 render_template로 보내기 때문
-const chartData = {{ chart_data | default({}) | tojson | safe }};
-if(chartData && chartData.accounts){
-    renderChart(chartData);
-}
+// 차트 데이터를 전역 변수로 설정 (compare-chart.js에서 사용)
+window.chartData = {{ chart_data | default({}) | tojson | safe }};
 </script>
-
-<!-- 외부 JS -->
+<script src="{{ url_for('static', filename='js/chart.js') }}"></script>
 <script src="{{ url_for('static', filename='js/compare.js') }}"></script>
 {% endblock %}

@@ -60,8 +60,49 @@ function initChart2(corpName, year) {
         });
 }
 
+// 비교 차트 렌더링 함수
+let compareChartInstance = null;
+
+function renderCompareChart(data){
+    const ctx = document.getElementById('comparisonChart');
+    if (!ctx) return;
+    
+    const chartCtx = ctx.getContext('2d');
+
+    const datasets = Object.keys(data)
+        .filter(k => k !== "accounts")
+        .map((key, i) => ({
+            label: key,
+            data: data[key],
+            backgroundColor: `hsl(${i * 60 % 360}, 70%, 50%)`
+        }));
+
+    if(compareChartInstance) compareChartInstance.destroy(); // 이전 차트 제거
+
+    compareChartInstance = new Chart(chartCtx, {
+        type: 'bar',
+        data: {
+            labels: data.accounts,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: '기업별 계정 비교' }
+            }
+        }
+    });
+}
+
 // 페이지 로드 시 차트 초기화
 document.addEventListener('DOMContentLoaded', function() {
+    // 비교 차트 초기화 (compare.html용)
+    if (window.chartData && window.chartData.accounts) {
+        renderCompareChart(window.chartData);
+    }
+    
+    // 기존 차트 초기화 (chart.html용)
     const chartContainer = document.querySelector('[data-chart-container]');
     if (!chartContainer) return;
     
