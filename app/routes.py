@@ -2,6 +2,12 @@ from flask import render_template, request, redirect, url_for, session, jsonify,
 from app import app, service, db
 from io import BytesIO
 from app.service import format_korean_number
+import easyocr
+import os
+import cv2
+import base64
+import numpy as np
+from PIL import Image
 
 app.jinja_env.filters["krnum"] = format_korean_number
 
@@ -323,3 +329,48 @@ def api_get_years():
     years = db.get_year_list(corp)
     years = [y[0] for y in years]
     return jsonify({'years': years})
+
+# ================================
+# 수현: 명함 OCR 라우터
+# ================================
+reader = easyocr.Reader(['ko', 'en'], gpu=False)
+
+@app.route('/ocr', methods=['GET', 'POST'])
+def ocr():
+    image_base64 = None
+    text_lines = None
+
+    if request.method == 'POST':
+        file = request.files['image']
+        if not file:
+            return render_template('ocr.html', error="파일이 없습니다.")
+
+        # 파일을 BytesIO로 읽기
+        image_bytes = BytesIO()
+        file.save(image_bytes)
+        image_bytes.seek(0)
+        
+        # 이미지를 base64로 인코딩 (화면 표시용)
+        import base64
+        image_base64 = base64.b64encode(image_bytes.read()).decode('utf-8')
+        image_bytes.seek(0)
+        
+        # 이미지 형식 확인
+        file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'png'
+        mime_type = f'image/{file_ext}' if file_ext in ['jpg', 'jpeg', 'png', 'gif'] else 'image/png'
+        image_data_uri = f'data:{mime_type};base64,{image_base64}'
+        
+        # OCR 실행을 위해 numpy 배열로 변환
+        import numpy as np
+        from PIL import Image
+        img = Image.open(image_bytes)
+        img_array = np.array(img)
+        
+        # easyocr 실행 (numpy 배열 사용)
+        text_lines = reader.readtext(img_array, detail=0)
+
+    return render_template(
+        'ocr.html',
+        image_data_uri=image_data_uri if image_base64 else None,
+        text_lines=text_lines
+    )

@@ -17,6 +17,7 @@
             <li><a href="{{ url_for('chart') }}">차트 보기</a></li>
             <li><a href="{{ url_for('compare') }}">재무제표 비교</a></li>
             <li><a href="{{ url_for('predict') }}">재무 지표 예측</a></li>
+            <li><a href="{{ url_for('ocr') }}">이미지 분석</a></li>
         </ul>
     </nav>
     {% with messages = get_flashed_messages(with_categories=true) %}

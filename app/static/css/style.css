@@ -538,3 +538,16 @@ tr:hover {
 .compare-table th:not(:first-child):not(:last-child):not(:nth-last-child(2)) {
     min-width: 180px; /* 핵심: 비교 컬럼들이 숨지 않게 강제폭 지정 */
 }
+
+/* ============================
+    OCR 이미지 크기 고정
+============================ */
+.ocr-image {
+    max-width: 300px;   /* 가로 최대 크기 */
+    max-height: 200px;  /* 세로 최대 크기 */
+    width: auto;
+    height: auto;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 5px;
+}

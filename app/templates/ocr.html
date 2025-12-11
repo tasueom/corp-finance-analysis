@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+
+{% block title %}
+이미지 분석
+{% endblock %}
+
+{% block content %}
+
+<h2>이미지 업로드</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    <input type="file" name="image" accept="image/*" required>
+    <button type="submit">텍스트 추출</button>
+</form>
+
+{% if error %}
+<p style="color:red;">{{ error }}</p>
+{% endif %}
+
+{% if text_lines %}
+<hr>
+
+<h3>텍스트 추출 결과</h3>
+
+<div class="container">
+
+    <div class="col">
+        <h4>업로드된 이미지</h4>
+        <img src="{{ image_data_uri }}" class="ocr-image">
+    </div>
+
+    <div class="col">
+        <h4>읽어들인 내용</h4>
+        <ul>
+        {% for line in text_lines %}
+            <li>{{ line }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+
+</div>
+{% endif %}
+
+{% endblock %}
