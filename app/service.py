@@ -974,3 +974,175 @@ def predict_company(model, pivot, corp_name, COMMON_IDS, TARGET_IDS, target_year
         ID_TO_NAME[TARGET_IDS[1]]: int(predicted_equity),
         ID_TO_NAME[TARGET_IDS[2]]: int(predicted_liabilities),
     }
+
+# 수현 추가 = 비교 테이블 생성 함수
+def make_compare_table(compare_list):
+    from app import db
+    import pandas as pd
+
+    dfs = []
+
+    # 1) 각 기업/연도별 데이터 로드
+    for item in compare_list:
+        corp = item["corp"]
+        year = item["year"]
+
+        rows = db.get_data_for_compare(corp, year)
+        df = pd.DataFrame(rows)
+
+        if df.empty:
+            continue
+
+        df = df[["account_id", "account_nm", "amount"]].copy()
+        # 0 또는 "0" 또는 0.0 은 None으로 처리
+        df["amount"] = df["amount"].apply(
+            lambda x: None if x in [0, 0.0, "0", "0.0"] else x
+        )
+        df = df.rename(columns={"amount": f"{corp}({year})"})
+
+        dfs.append(df)
+
+    if not dfs:
+        return None
+
+    # -------------------------------------------------------------
+    # 2) 병합 시작 (첫 번째 df 기준)
+    # -------------------------------------------------------------
+    result = dfs[0]
+
+    for df in dfs[1:]:
+        # 우선 ID 기준 merge
+        left_has_id = result["account_id"].notna().any()
+        right_has_id = df["account_id"].notna().any()
+
+        if left_has_id and right_has_id:
+            # 2-1) account_id 기준 병합
+            merged = pd.merge(result, df, on="account_id", how="outer", suffixes=("_l", "_r"))
+
+            # account_nm 정리 (좌/우 중 존재하는 값 선택)
+            merged["account_nm"] = merged["account_nm_l"].combine_first(merged["account_nm_r"])
+            merged = merged.drop(columns=["account_nm_l", "account_nm_r"])
+
+        else:
+            # 2-2) account_nm 기준 병합
+            merged = pd.merge(result, df, on="account_nm", how="outer")
+
+        result = merged
+
+    # -------------------------------------------------------------
+    # 3) id도 nm도 둘 다 안 겹친 항목 제거 (비교 불가능한 row 제거)
+    # -------------------------------------------------------------
+    # "비교"가 가능하려면 최소 두 개 이상의 기업 컬럼에서 값이 존재해야 함
+    value_cols = [col for col in result.columns if "(" in col and ")" in col]
+
+    result["notnull_count"] = result[value_cols].notna().sum(axis=1)
+    result = result[result["notnull_count"] >= 2].copy()
+    result = result.drop(columns=["notnull_count"])
+
+    # -------------------------------------------------------------
+    # 4) 비교 결과 구성 (표시할 컬럼)
+    # -------------------------------------------------------------
+    # 표시 컬럼: account_nm + 각 기업 금액
+    final_cols = ["account_nm"] + value_cols
+
+    # -------------------------------------------------------------
+    # 5) 2개 비교일 때 차이/증감률 계산
+    # -------------------------------------------------------------
+    if len(compare_list) == 2:
+        col1 = f"{compare_list[0]['corp']}({compare_list[0]['year']})"
+        col2 = f"{compare_list[1]['corp']}({compare_list[1]['year']})"
+
+        result["차이(금액)"] = result[col2] - result[col1]
+
+        def calc_rate(row):
+            base = row[col1]
+            if base is None or base == 0:
+                return None
+            return (row[col2] - base) / base * 100
+
+        result["증감률(%)"] = result.apply(calc_rate, axis=1)
+
+        final_cols += ["차이(금액)", "증감률(%)"]
+
+    # -------------------------------------------------------------
+    # 6) 최종 컬럼 반환
+    # -------------------------------------------------------------
+    return result[final_cols]
+
+# 수현추가 = 숫자 자리 정리
+def format_korean_number(num):
+    """
+    숫자를 조 / 억 단위로 변환하여 문자열로 반환
+    None 또는 0은 '-' 로 표시
+    """
+    if num is None:
+        return "-"
+
+    try:
+        num = float(num)
+    except:
+        return "-"
+
+    if num == 0:
+        return "-"
+
+    # 절대값 기준으로 단위 변환
+    abs_num = abs(num)
+
+    if abs_num >= 1_0000_0000_0000:  # 1조
+        formatted = f"{num / 1_0000_0000_0000:.1f}조"
+    elif abs_num >= 1_0000_0000:  # 1억
+        formatted = f"{num / 1_0000_0000:.1f}억"
+    else:
+        formatted = f"{num:,.0f}"  # 일반 콤마 표시
+
+    return formatted
+
+def make_chart_data(compare_list):
+    """
+    차트용 데이터 생성
+    compare_list = [{"corp": "삼성전자", "year": "2023"}, ...]
+    """
+
+    from app import db
+    import pandas as pd
+
+    dfs = []
+
+    # 1) 기업별 데이터프레임 생성
+    for item in compare_list:
+        corp = item["corp"]
+        year = item["year"]
+
+        rows = db.get_data_for_compare(corp, year)
+        df = pd.DataFrame(rows)
+
+        if df.empty:
+            continue
+
+        df = df[["account_nm", "amount"]].copy()
+        df = df.rename(columns={"amount": f"{corp}({year})"})
+
+        dfs.append(df)
+
+    if not dfs:
+        return {}
+
+    # 2) account_nm 기준으로 모두 merge
+    result = dfs[0]
+    for df in dfs[1:]:
+        result = pd.merge(result, df, on="account_nm", how="outer")
+
+    # 3) NaN은 0으로 (차트는 숫자 필요)
+    result = result.fillna(0)
+
+    # 4) 딕셔너리 구조로 변환
+    chart_data = {
+        "accounts": result["account_nm"].tolist()
+    }
+
+    value_cols = [col for col in result.columns if col != "account_nm"]
+    for col in value_cols:
+        chart_data[col] = result[col].tolist()
+
+    return chart_data

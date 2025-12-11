@@ -1,6 +1,9 @@
 from flask import render_template, request, redirect, url_for, session, jsonify, flash, send_file
 from app import app, service, db
 from io import BytesIO
+from app.service import format_korean_number
+
+app.jinja_env.filters["krnum"] = format_korean_number
 
 @app.route('/')
 def index():
@@ -265,3 +268,58 @@ def predict():
                           predicted_year=predicted_year,
                           metrics=metrics,
                           avg_metrics=avg_metrics)
+
+# 수현추가 = 비교 기능 추가
+@app.route('/compare', methods=['GET', 'POST'])
+def compare():
+    corp_list = db.get_corp_list()
+
+    if request.method == "POST":
+        # 여러 비교 대상 받아오기
+        corp_names = request.form.getlist("corp_name")
+        years = request.form.getlist("year")
+
+        compare_list = []
+
+        for corp, yr in zip(corp_names, years):
+            if corp and yr:
+                compare_list.append({"corp": corp, "year": yr})
+
+        if len(compare_list) < 2:
+            return render_template(
+                "compare.html",
+                corp_list=corp_list,
+                error="최소 2개 이상의 비교 대상을 선택하세요."
+            )
+
+        # 비교 테이블 생성
+        result_df = service.make_compare_table(compare_list)
+        
+        # 🔥 여기서 차트용 데이터 생성
+        chart_data = service.make_chart_data(compare_list)
+
+        if result_df is None or result_df.empty:
+            return render_template(
+                "compare.html",
+                corp_list=corp_list,
+                error="비교 가능한 항목이 없습니다."
+            )
+
+        return render_template(
+            "compare.html",
+            corp_list=corp_list,
+            columns=result_df.columns,
+            result=result_df.to_dict("records"),
+            chart_data=chart_data
+        )
+
+    return render_template("compare.html", corp_list=corp_list)
+
+
+# 수현추가 = 연도 리스트 API
+@app.route('/api/get_years')
+def api_get_years():
+    corp = request.args.get('corp')
+    years = db.get_year_list(corp)
+    years = [y[0] for y in years]
+    return jsonify({'years': years})

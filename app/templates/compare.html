@@ -1,0 +1,187 @@
+{% extends "layout.html" %}
+
+{% block title %}
+재무제표 비교
+{% endblock %}
+
+{% block content %}
+<h2>재무제표 비교 분석</h2>
+<script>
+    const corpList = {{ corp_list | tojson }};
+</script>
+<div class="comparison-container">
+    <form method="POST" class="compare-form" id="compare-form">
+
+        <div id="compare-box">
+            <!-- 기본 비교 행 -->
+            <div class="compare-row row-box">
+                <div>
+                    <label>기업 선택</label>
+                    <select name="corp_name" onchange="loadYears(this)">
+                        <option value="">기업 선택</option>
+                        {% for corp in corp_list %}
+                        <option value="{{ corp[0] }}">{{ corp[0] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label>연도 선택</label>
+                    <select name="year">
+                        <!-- 자동 로딩 -->
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" id="add-btn" class="btn-secondary">+ 비교 대상 추가</button>
+        <button type="submit" class="btn-primary">비교하기</button>
+    </form>
+</div>
+
+{% if result %}
+<h3>비교 결과표</h3>
+
+<div class="table-container">
+    <table class="compare-table">
+        <thead>
+            <tr>
+                {% for col in columns %}
+                <th>{{ col }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+
+            <tbody>
+                {% for row in result %}
+                <tr>
+                    {% for col in columns %}
+                        {% set val = row[col] %}
+
+                        {% if col == "account_nm" %}
+                            <!-- 계정명은 그대로 -->
+                            <td>{{ val }}</td>
+
+                        {% elif "차이" in col %}
+                            <!-- 차이 금액: 단위 변환 + 색상 -->
+                            <td style="color:{% if val > 0 %}#27ae60{% elif val < 0 %}#c0392b{% else %}#7f8c8d{% endif %}; font-weight:600;">
+                                {{ val | krnum }}
+                            </td>
+
+                        {% elif "증감률" in col %}
+                            <!-- 증감률: % 표시 + 색상 -->
+                            <td style="color:{% if val > 0 %}#27ae60{% elif val < 0 %}#c0392b{% else %}#7f8c8d{% endif %}; font-weight:600;">
+                                {% if val is none %}
+                                    -
+                                {% else %}
+                                    {{ val | round(2) }}%
+                                {% endif %}
+                            </td>
+
+                        {% else %}
+                            <!-- 일반 금액 처리 (억/조 단위 변환) -->
+                            <td>{{ val | krnum }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+
+    </table>
+</div>
+{% endif %}
+
+<hr style="margin: 40px 0;">
+
+
+<!---------------------------------------------수정한곳--------------------------------------->
+<h3>비교 차트 영역</h3>
+
+<div class="chart-container" style="
+    margin-top: 20px;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+">
+    <canvas id="comparisonChart"></canvas>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const compareBox = document.getElementById("compare-box");
+const addBtn = document.getElementById("add-btn");
+const form = document.getElementById("compare-form");
+let chartInstance = null;
+
+// // 폼 제출
+// form.addEventListener("submit", async (e) => {
+//     e.preventDefault();
+
+//     const rows = compareBox.querySelectorAll(".compare-row");
+//     const data = [];
+
+//     rows.forEach(row => {
+//         const corp = row.querySelector("select[name='corp_name']").value;
+//         const year = row.querySelector("select[name='year']").value;
+//         if(corp && year){
+//             data.push({corp, year});
+//         }
+//     });
+
+//     if(data.length === 0) return alert("기업과 연도를 선택해주세요.");
+
+//     // POST 요청
+//     const res = await fetch("/chart2_data", {
+//         method: "POST",
+//         headers: {"Content-Type": "application/json"},
+//         body: JSON.stringify({data})
+//     });
+
+//     const result = await res.json();
+//     renderChart(result);
+// });
+
+
+// 차트 렌더링
+function renderChart(data){
+    const ctx = document.getElementById('comparisonChart').getContext('2d');
+
+    const datasets = Object.keys(data)
+        .filter(k => k !== "accounts")
+        .map((key, i) => ({
+            label: key,
+            data: data[key],
+            backgroundColor: `hsl(${i * 60 % 360}, 70%, 50%)`
+        }));
+
+    if(chartInstance) chartInstance.destroy(); // 이전 차트 제거
+
+    chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.accounts,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: '기업별 계정 비교' }
+            }
+        }
+    });
+}
+
+// 무조건 있어야함 jsonify가 아닌 render_template로 보내기 때문
+const chartData = {{ chart_data | default({}) | tojson | safe }};
+if(chartData && chartData.accounts){
+    renderChart(chartData);
+}
+</script>
+
+<!-- 외부 JS -->
+<script src="{{ url_for('static', filename='js/compare.js') }}"></script>
+{% endblock %}

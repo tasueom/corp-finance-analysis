@@ -265,3 +265,26 @@ def get_all_data():
             cursor.close()
         if conn:
             conn.close()
+
+# 수현 추가 = DB 조회용 함수
+def get_data_for_compare(corp_name, year):
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor(dictionary=True)  # dict 형태로 받기
+        
+        cursor.execute(f"""
+            SELECT account_id, account_nm, amount 
+            FROM {TABLE_NAME}
+            WHERE corp_name = %s AND year = %s
+        """, (corp_name, year))
+
+        return cursor.fetchall()
+    except:
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
