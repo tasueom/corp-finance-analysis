@@ -41,9 +41,88 @@ if not env_loaded:
 API_KEY = os.environ.get('API_KEY', '').strip()
 BASE_URL = os.environ.get('BASE_URL', 'https://opendart.fss.or.kr/api').strip()
 
+# 기업 코드 캐시 (메모리 캐싱)
+_corp_code_cache = {}  # {corp_name: corp_code}
+_corp_list_cache = []  # [{'corp_name': '...', 'corp_code': '...'}, ...]
+_cache_loaded = False
+_cache_lock = None  # threading.Lock은 지연 로딩
+
+def load_corp_code_cache():
+    """
+    DART API에서 전체 기업 코드 목록을 다운로드하여 메모리에 캐싱합니다.
+    Flask 앱 시작 시 백그라운드에서 호출됩니다.
+    """
+    global _corp_code_cache, _corp_list_cache, _cache_loaded
+    
+    if not API_KEY:
+        print("경고: API_KEY가 설정되지 않아 기업 코드 캐시를 로드할 수 없습니다.")
+        return False
+    
+    try:
+        print("기업 코드 캐시 로딩 시작...")
+        url = f'{BASE_URL}/corpCode.xml?crtfc_key={API_KEY}'
+        
+        # ZIP 파일로 압축된 XML 다운로드
+        response = requests.get(url, timeout=60)  # 타임아웃 증가 (대용량 파일)
+        response.raise_for_status()
+        
+        # ZIP 파일인지 확인
+        if not response.content.startswith(b'PK'):
+            print("경고: 다운로드한 파일이 ZIP 형식이 아닙니다.")
+            return False
+        
+        # 캐시 초기화
+        _corp_code_cache = {}
+        _corp_list_cache = []
+        
+        # ZIP 파일 압축 해제 및 XML 파싱
+        with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+            # CORPCODE.xml 파일 찾기
+            xml_file = None
+            for fname in z.namelist():
+                if fname.upper() == 'CORPCODE.XML':
+                    xml_file = fname
+                    break
+            
+            if not xml_file:
+                print("경고: ZIP 파일에 CORPCODE.xml이 없습니다.")
+                return False
+            
+            # CORPCODE.xml 파일 열기 및 파싱
+            with z.open(xml_file) as f:
+                tree = ET.parse(f)
+                root = tree.getroot()
+                
+                # 모든 기업 정보를 캐시에 저장
+                for child in root:
+                    corp_name_elem = child.find('corp_name')
+                    corp_code_elem = child.find('corp_code')
+                    
+                    if corp_name_elem is not None and corp_code_elem is not None:
+                        corp_name = corp_name_elem.text
+                        corp_code = corp_code_elem.text
+                        
+                        if corp_name and corp_code:
+                            # 딕셔너리 캐시 (빠른 조회용)
+                            _corp_code_cache[corp_name] = corp_code
+                            # 리스트 캐시 (검색용)
+                            _corp_list_cache.append({
+                                'corp_name': corp_name,
+                                'corp_code': corp_code
+                            })
+        
+        _cache_loaded = True
+        print(f"기업 코드 캐시 로딩 완료: {len(_corp_list_cache)}개 기업")
+        return True
+        
+    except Exception as e:
+        print(f"기업 코드 캐시 로딩 실패: {str(e)}")
+        return False
+
 def get_corp_code(corp_name):
     """
     기업 이름으로 DART 기업 코드를 조회합니다.
+    캐시가 로드되어 있으면 캐시에서 조회하고, 없으면 API를 호출합니다.
     
     Args:
         corp_name (str): 검색할 기업 이름
@@ -51,104 +130,24 @@ def get_corp_code(corp_name):
     Returns:
         str: 기업 코드 (corp_code), 찾지 못한 경우 None
     """
-    if not API_KEY:
-        # 환경변수 확인을 위한 디버깅 정보
-        env_keys = [k for k in os.environ.keys() if 'API' in k.upper() or 'KEY' in k.upper()]
-        raise ValueError(
-            f"API_KEY 환경변수가 설정되지 않았습니다. "
-            f"현재 환경변수 중 API/KEY 관련: {env_keys if env_keys else '없음'}"
+    # 캐시가 로드되어 있으면 캐시에서 조회
+    if _cache_loaded and corp_name in _corp_code_cache:
+        return _corp_code_cache[corp_name]
+    
+    # 캐시가 없거나 해당 기업이 없으면 None 반환
+    # (기존 API 호출 방식은 제거하고 캐시에 의존)
+    if not _cache_loaded:
+        raise Exception(
+            "기업 코드 캐시가 아직 로드되지 않았습니다. "
+            "잠시 후 다시 시도해주세요. (서버 시작 중일 수 있습니다)"
         )
     
-    # corpCode.xml 다운로드 URL
-    url = f'{BASE_URL}/corpCode.xml?crtfc_key={API_KEY}'
-    
-    # 디버깅: API_KEY가 실제로 설정되었는지 확인 (키의 일부만 표시)
-    if len(API_KEY) < 10:
-        raise ValueError(f"API_KEY가 너무 짧습니다. 올바른 키인지 확인해주세요. (길이: {len(API_KEY)})")
-    
-    try:
-        # ZIP 파일로 압축된 XML 다운로드
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        
-        # 응답 내용 확인 (에러 메시지인지 체크)
-        content_type = response.headers.get('Content-Type', '').lower()
-        response_text = response.text[:200].lower() if hasattr(response, 'text') else ''
-        
-        # HTML 응답인지 확인 (인증 실패 또는 잘못된 API 키)
-        if 'text/html' in content_type or response_text.startswith('<!doctype html') or response_text.startswith('<html'):
-            # API_KEY 디버깅 정보 (키의 앞 4자만 표시)
-            key_preview = API_KEY[:4] + '...' if API_KEY and len(API_KEY) > 4 else 'None'
-            raise Exception(
-                f"DART API 인증 실패: API_KEY가 올바르지 않거나 설정되지 않았습니다.\n"
-                f"현재 API_KEY (앞 4자): {key_preview}\n"
-                f"API_KEY 길이: {len(API_KEY) if API_KEY else 0}\n"
-                f"호출 URL: {url.split('?')[0]}?crtfc_key=***\n"
-                f".env 파일 위치를 확인하고 올바른 API_KEY를 설정해주세요.\n"
-                f"(DART Open API 홈페이지: https://opendart.fss.or.kr/)"
-            )
-        
-        # JSON 에러 응답인지 확인
-        if 'application/json' in content_type or response.content[:1] == b'{':
-            try:
-                error_data = response.json()
-                error_message = error_data.get('message', '알 수 없는 오류')
-                status = error_data.get('status', '')
-                raise Exception(f"DART API 오류 (상태: {status}): {error_message}")
-            except ValueError:
-                pass  # JSON 파싱 실패 시 계속 진행
-        
-        # ZIP 파일인지 확인
-        if not response.content.startswith(b'PK'):
-            # ZIP 파일 시그니처가 아닌 경우
-            raise Exception(
-                "다운로드한 파일이 ZIP 형식이 아닙니다. "
-                "API_KEY가 올바르게 설정되어 있는지 확인해주세요. "
-                f"(응답 상태 코드: {response.status_code}, Content-Type: {content_type})"
-            )
-        
-        # ZIP 파일 압축 해제 및 XML 파싱
-        try:
-            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                # 파일 목록 확인
-                file_list = z.namelist()
-                
-                # CORPCODE.xml 파일 찾기 (대소문자 구분 없이)
-                xml_file = None
-                for fname in file_list:
-                    if fname.upper() == 'CORPCODE.XML':
-                        xml_file = fname
-                        break
-                
-                if not xml_file:
-                    raise Exception(f"ZIP 파일에 CORPCODE.xml이 없습니다. 파일 목록: {file_list}")
-                
-                # CORPCODE.xml 파일 열기
-                with z.open(xml_file) as f:
-                    tree = ET.parse(f)
-                    root = tree.getroot()
-                    
-                    # 기업 이름으로 검색
-                    for child in root:
-                        corp_name_elem = child.find('corp_name')
-                        if corp_name_elem is not None and corp_name_elem.text == corp_name:
-                            corp_code_elem = child.find('corp_code')
-                            if corp_code_elem is not None:
-                                return corp_code_elem.text
-        except zipfile.BadZipFile as e:
-            error_text = response.text[:500] if hasattr(response, 'text') else str(response.content[:500])
-            raise Exception(f"다운로드한 파일이 올바른 ZIP 형식이 아닙니다. 응답 내용: {error_text}")
-        
-        return None
-    
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"기업 코드 조회 중 네트워크 오류 발생: {str(e)}")
-    except ET.ParseError as e:
-        raise Exception(f"XML 파싱 중 오류 발생: {str(e)}")
+    return None
 
 def search_corps(search_term, limit=50):
     """
     검색어가 포함된 기업 목록을 조회합니다.
+    캐시가 로드되어 있으면 캐시에서 검색하고, 없으면 빈 리스트를 반환합니다.
     
     Args:
         search_term (str): 검색할 기업 이름 (부분 일치)
@@ -157,81 +156,25 @@ def search_corps(search_term, limit=50):
     Returns:
         list: 기업 정보 리스트 [{'corp_name': '기업명', 'corp_code': '기업코드'}, ...]
     """
-    if not API_KEY:
-        raise ValueError("API_KEY 환경변수가 설정되지 않았습니다.")
-    
     if not search_term or len(search_term.strip()) < 1:
         return []
     
-    search_term = search_term.strip()
+    # 캐시가 로드되지 않았으면 빈 리스트 반환
+    if not _cache_loaded:
+        return []
     
-    # corpCode.xml 다운로드 URL
-    url = f'{BASE_URL}/corpCode.xml?crtfc_key={API_KEY}'
+    search_term = search_term.strip().lower()
+    results = []
     
-    try:
-        # ZIP 파일로 압축된 XML 다운로드
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        
-        # 응답 내용 확인 (에러 메시지인지 체크)
-        content_type = response.headers.get('Content-Type', '').lower()
-        response_text = response.text[:200].lower() if hasattr(response, 'text') else ''
-        
-        # HTML 응답인지 확인 (인증 실패 또는 잘못된 API 키)
-        if 'text/html' in content_type or response_text.startswith('<!doctype html') or response_text.startswith('<html'):
-            raise Exception("DART API 인증 실패: API_KEY가 올바르지 않거나 설정되지 않았습니다.")
-        
-        # ZIP 파일인지 확인
-        if not response.content.startswith(b'PK'):
-            raise Exception("다운로드한 파일이 ZIP 형식이 아닙니다.")
-        
-        results = []
-        
-        # ZIP 파일 압축 해제 및 XML 파싱
-        try:
-            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                # 파일 목록 확인
-                file_list = z.namelist()
-                
-                # CORPCODE.xml 파일 찾기 (대소문자 구분 없이)
-                xml_file = None
-                for fname in file_list:
-                    if fname.upper() == 'CORPCODE.XML':
-                        xml_file = fname
-                        break
-                
-                if not xml_file:
-                    raise Exception(f"ZIP 파일에 CORPCODE.xml이 없습니다.")
-                
-                # CORPCODE.xml 파일 열기
-                with z.open(xml_file) as f:
-                    tree = ET.parse(f)
-                    root = tree.getroot()
-                    
-                    # 검색어가 포함된 기업 찾기
-                    for child in root:
-                        corp_name_elem = child.find('corp_name')
-                        if corp_name_elem is not None and corp_name_elem.text:
-                            # 검색어가 기업 이름에 포함되어 있는지 확인 (대소문자 구분 없이)
-                            if search_term.lower() in corp_name_elem.text.lower():
-                                corp_code_elem = child.find('corp_code')
-                                if corp_code_elem is not None:
-                                    results.append({
-                                        'corp_name': corp_name_elem.text,
-                                        'corp_code': corp_code_elem.text
-                                    })
-                                    # limit에 도달하면 중단
-                                    if len(results) >= limit:
-                                        break
-        except zipfile.BadZipFile as e:
-            raise Exception(f"다운로드한 파일이 올바른 ZIP 형식이 아닙니다.")
-        
-        return results
+    # 캐시에서 검색 (대소문자 구분 없이)
+    for corp in _corp_list_cache:
+        if search_term in corp['corp_name'].lower():
+            results.append(corp)
+            # limit에 도달하면 중단
+            if len(results) >= limit:
+                break
     
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"기업 검색 중 네트워크 오류 발생: {str(e)}")
-    except ET.ParseError as e:
-        raise Exception(f"XML 파싱 중 오류 발생: {str(e)}")
+    return results
 
 def get_finance_data(corp_code, bsns_year='2024'):
     """
