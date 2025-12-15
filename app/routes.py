@@ -280,9 +280,9 @@ def predict():
                           metrics=metrics,
                           avg_metrics=avg_metrics)
 
-# 수현추가 = 비교 기능 추가
 @app.route('/compare', methods=['GET', 'POST'])
 def compare():
+    """기업 비교 기능"""
     corp_list = db.get_corp_list()
 
     if request.method == "POST":
@@ -326,10 +326,9 @@ def compare():
 
     return render_template("compare.html", corp_list=corp_list)
 
-
-# 수현추가 = 연도 리스트 API
 @app.route('/api/get_years')
 def api_get_years():
+    """연도 리스트 API"""
     corp = request.args.get('corp')
     years = db.get_year_list(corp)
     years = [y[0] for y in years]
@@ -341,13 +340,11 @@ def pie_data(corp, year):
     data = db.get_pie_data(corp, year)
     return jsonify(data)
 
-# ================================
-# 수현: 명함 OCR 라우터
-# ================================
 reader = easyocr.Reader(['ko', 'en'], gpu=False)
 
 @app.route('/ocr', methods=['GET', 'POST'])
 def ocr():
+    """OCR 기능"""
     image_base64 = None
     text_lines = None
 

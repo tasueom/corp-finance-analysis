@@ -975,8 +975,8 @@ def predict_company(model, pivot, corp_name, COMMON_IDS, TARGET_IDS, target_year
         ID_TO_NAME[TARGET_IDS[2]]: int(predicted_liabilities),
     }
 
-# 수현 추가 = 비교 테이블 생성 함수
 def make_compare_table(compare_list):
+    """비교 테이블 생성 함수"""
     from app import db
     import pandas as pd
 
@@ -1069,7 +1069,6 @@ def make_compare_table(compare_list):
     # -------------------------------------------------------------
     return result[final_cols]
 
-# 수현추가 = 숫자 자리 정리
 def format_korean_number(num):
     """
     숫자를 조 / 억 단위로 변환하여 문자열로 반환

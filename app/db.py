@@ -266,8 +266,8 @@ def get_all_data():
         if conn:
             conn.close()
 
-# 수현 추가 = DB 조회용 함수
 def get_data_for_compare(corp_name, year):
+    """기업 비교 기능을 위한 데이터 조회"""
     conn = None
     cursor = None
     try:
