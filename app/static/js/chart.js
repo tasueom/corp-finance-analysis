@@ -74,17 +74,27 @@ function initPieChart(corpName, year) {
             const ctx = document.getElementById('pieChart');
             if (!ctx) return;
             
+            // 계정 코드와 이름 매핑
+            const ID_TO_NAME = {
+                "ifrs-full_Equity": "자본총계",
+                "ifrs-full_Liabilities": "부채총계"
+            };
+            
             // 자본총계를 먼저, 부채총계를 나중에 오도록 정렬
             const sortedLabels = [];
             const sortedValues = [];
             
-            if (data['자본총계'] !== undefined) {
-                sortedLabels.push('자본총계');
-                sortedValues.push(data['자본총계']);
+            // 자본총계 (ifrs-full_Equity)
+            if (data['ifrs-full_Equity'] !== undefined) {
+                const item = data['ifrs-full_Equity'];
+                sortedLabels.push(item.name || ID_TO_NAME['ifrs-full_Equity']);
+                sortedValues.push(item.amount);
             }
-            if (data['부채총계'] !== undefined) {
-                sortedLabels.push('부채총계');
-                sortedValues.push(data['부채총계']);
+            // 부채총계 (ifrs-full_Liabilities)
+            if (data['ifrs-full_Liabilities'] !== undefined) {
+                const item = data['ifrs-full_Liabilities'];
+                sortedLabels.push(item.name || ID_TO_NAME['ifrs-full_Liabilities']);
+                sortedValues.push(item.amount);
             }
             
             new Chart(ctx.getContext('2d'), {

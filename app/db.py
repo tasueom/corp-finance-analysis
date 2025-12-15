@@ -298,7 +298,8 @@ def get_pie_data(corp_name, year):
         year (str): 연도
         
     Returns:
-        dict: {'자본총계': amount, '부채총계': amount} 형식의 딕셔너리
+        dict: {'ifrs-full_Equity': amount, 'ifrs-full_Liabilities': amount} 형식의 딕셔너리
+              계정 코드를 키로 사용하며, 계정 이름도 함께 반환
     """
     conn = None
     cursor = None
@@ -306,12 +307,23 @@ def get_pie_data(corp_name, year):
         conn = get_conn()
         cursor = conn.cursor()
         cursor.execute(f"""
-            SELECT account_nm, amount FROM {TABLE_NAME}
-            WHERE corp_name = %s AND year = %s AND account_nm IN ('자본총계', '부채총계')
+            SELECT account_id, account_nm, amount FROM {TABLE_NAME}
+            WHERE corp_name = %s AND year = %s 
+            AND account_id IN ('ifrs-full_Equity', 'ifrs-full_Liabilities')
         """, (corp_name, year))
         
         rows = cursor.fetchall()
-        data = {row[0]: row[1] for row in rows}
+        # account_id를 키로 사용하되, account_nm도 함께 저장
+        data = {}
+        for row in rows:
+            account_id = row[0]
+            account_nm = row[1]
+            amount = row[2]
+            if account_id:
+                data[account_id] = {
+                    'name': account_nm,
+                    'amount': amount
+                }
         return data
     except mysql.connector.Error as err:
         print(f"Pie data retrieval failed: {err}")
