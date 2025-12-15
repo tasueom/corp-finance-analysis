@@ -14,6 +14,16 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from sklearn.model_selection import train_test_split
 import numpy as np
+from io import BytesIO
+import matplotlib
+matplotlib.use('Agg')  # GUI 백엔드 없이 사용 (Flask 환경에서 필요)
+import matplotlib.pyplot as plt
+from matplotlib import font_manager, rc
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.utils import ImageReader
 
 # .env 파일 로드 (명시적으로 경로 지정 및 여러 경로 시도)
 base_dir = Path(__file__).parent.parent
@@ -1227,3 +1237,126 @@ def calculate_financial_indicators(rows):
         }
     
     return indicators
+
+def generate_pdf_chart_image(rows, selected_corp, selected_year):
+    """
+    PDF용 차트 이미지를 생성합니다.
+    
+    Args:
+        rows: 계정 데이터 리스트 [(account_id, account_nm, amount), ...]
+        selected_corp: 기업 이름
+        selected_year: 연도
+        
+    Returns:
+        BytesIO: 차트 이미지가 저장된 BytesIO 객체
+    """
+    # 중요한 재무상태표 항목만 필터링 (account_id 기준)
+    important_account_ids = [
+        "ifrs-full_Assets",                    # 자산총계
+        "ifrs-full_CurrentAssets",             # 유동자산
+        "ifrs-full_NoncurrentAssets",          # 비유동자산
+        "ifrs-full_Liabilities",               # 부채총계
+        "ifrs-full_CurrentLiabilities",         # 유동부채
+        "ifrs-full_NoncurrentLiabilities",     # 비유동부채
+        "ifrs-full_Equity",                    # 자본총계
+        "ifrs-full_IssuedCapital",             # 자본금
+        "ifrs-full_RetainedEarnings",          # 이익잉여금
+        "ifrs-full_CashAndCashEquivalents",    # 현금및현금성자산
+        "ifrs-full_Inventories",               # 재고자산
+        "ifrs-full_PropertyPlantAndEquipment", # 유형자산
+    ]
+    
+    # 중요한 항목만 필터링
+    filtered_rows = [r for r in rows if r[0] and r[0] in important_account_ids]
+    
+    if not filtered_rows:
+        # 필터링된 항목이 없으면 전체 항목 사용 (fallback)
+        filtered_rows = rows
+    
+    font_path = "C:/Windows/Fonts/malgun.ttf"         # Windows 기본 폰트 경로
+    font_name = font_manager.FontProperties(fname=font_path).get_name()
+    rc('font', family=font_name)                      # Matplotlib 한글 글꼴 적용
+    plt.rcParams['axes.unicode_minus'] = False        # 마이너스 기호 깨짐 방지
+    
+    # account_nm과 amount만 추출하여 DataFrame 생성
+    data = [(r[1], r[2]) for r in filtered_rows]  # r[0]: account_id, r[1]: account_nm, r[2]: amount
+    df = pd.DataFrame(data, columns=["account_nm", "amount"])
+    
+    accounts = df["account_nm"]
+    amounts = df["amount"]
+    
+    plt.bar(accounts, amounts)
+    plt.xticks(rotation=60, ha="right")
+    plt.title(f"{selected_corp} {selected_year}년 재무상태표 주요 항목", fontsize=14, pad=20)
+    plt.xlabel("계정과목")
+    plt.ylabel("금액(원)")
+    
+    # BytesIO에 이미지 저장
+    img_buffer = BytesIO()
+    plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight', transparent=True)
+    plt.close()
+    
+    img_buffer.seek(0)  # 파일 포인터를 처음으로 이동
+    return img_buffer
+
+def generate_pdf_document(rows, selected_corp, selected_year, chart_image_buffer):
+    """
+    PDF 문서를 생성합니다.
+    
+    Args:
+        rows: 계정 데이터 리스트 [(account_id, account_nm, amount), ...]
+        selected_corp: 기업 이름
+        selected_year: 연도
+        chart_image_buffer: 차트 이미지가 저장된 BytesIO 객체
+        
+    Returns:
+        BytesIO: PDF 문서가 저장된 BytesIO 객체
+    """
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    
+    pdfmetrics.registerFont(
+        TTFont("Malgun", "C:/Windows/Fonts/malgun.ttf")
+    )
+
+    x = 50
+    y = height - 50
+
+    c.setFont("Malgun", 16)
+    c.drawString(x, y, f"{selected_corp} {selected_year}년 재무상태표")
+    y -= 30
+
+    c.setFont("Malgun", 11)
+    c.drawString(x, y, "계정과목")
+    c.drawRightString(width - 50, y, "금액(원)")
+    y -= 20
+
+    c.setFont("Malgun", 9)
+
+    for row in rows:
+        account_nm = row[1]
+        amount = row[2]
+        if y < 120:
+            c.showPage()
+            c.setFont("Malgun", 9)
+            y = height - 50
+
+        c.drawString(x, y, str(account_nm))
+        c.drawRightString(width - 50, y, f"{amount:,}")
+        y -= 14
+    
+    # 차트 이미지 삽입
+    chart_image_buffer.seek(0)  # 파일 포인터를 처음으로 이동
+    c.drawImage(
+        ImageReader(chart_image_buffer),
+        x,
+        50,
+        width=500,
+        height=250
+    )
+
+    c.save()
+    buffer.seek(0)
+    
+    return buffer

@@ -220,6 +220,44 @@ def export_json():
         mimetype="application/json"
     )
 
+@app.route("/export_pdf", methods=["GET"])
+def export_pdf():
+    selected_corp = request.args.get("corp_name")
+    selected_year = request.args.get("year")
+    
+    if not selected_corp:
+        flash("기업을 선택해주세요.", "error")
+        return redirect(url_for("view", corp_name=selected_corp, year=selected_year))
+    
+    years = db.get_year_list(selected_corp)
+
+    if not selected_year and years:
+        selected_year = str(years[0][0])
+        
+    if selected_year:
+        rows = db.get_account_data_by_year(selected_corp, selected_year)
+    else:
+        rows = []
+
+    if not rows:
+        flash("해당 연도의 데이터가 존재하지 않습니다.", "error")
+        return redirect(url_for("view"))
+    
+    # 차트 이미지 생성
+    chart_image_buffer = service.generate_pdf_chart_image(rows, selected_corp, selected_year)
+    
+    # PDF 문서 생성
+    pdf_buffer = service.generate_pdf_document(rows, selected_corp, selected_year, chart_image_buffer)
+    
+    filename = f"{selected_corp}_{selected_year}_재무상태표.pdf"
+    
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf"
+    )
+
 @app.route("/predict", methods=['GET', 'POST'])
 def predict():
     """머신러닝 모델을 사용한 재무 지표 예측"""

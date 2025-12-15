@@ -165,6 +165,15 @@ tr:hover {
     background-color: #e67e22;
 }
 
+.btn-pdf {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-pdf:hover {
+    background-color: #c82333;
+}
+
 /* 메시지 스타일 */
 .messages {
     margin: 20px 0;

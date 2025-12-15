@@ -15,6 +15,9 @@
     <a href="{{ url_for('export_json')}}" class="btn-download btn-json" title="JSON 다운로드">
         <i class="fas fa-file-code"></i>
     </a>
+    <a href="{{ url_for('export_pdf', corp_name=selected_corp, year=selected_year) }}" class="btn-download btn-pdf" title="PDF 다운로드">
+        <i class="fas fa-file-pdf"></i>
+    </a>
 </div>
 
 <form method="post">
