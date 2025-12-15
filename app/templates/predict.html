@@ -7,7 +7,6 @@
 {% block content %}
 <h2>재무 지표 예측 (머신러닝)</h2>
 <form method="POST" id="predictForm" class="predict-form-section">
-    <label>기업 선택:</label>
     <select name="corp" id="corpSelect" onchange="document.getElementById('predictForm').submit()">
         <option value="" disabled hidden {% if not selected_corp %}selected{% endif %}>기업선택</option>
         {% for corp in corp_list %}

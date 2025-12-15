@@ -41,16 +41,16 @@ document.addEventListener("DOMContentLoaded", function () {
         newRow.classList.add("compare-row", "row-box");
         newRow.innerHTML = `
             <div>
-                <label>기업 선택</label>
                 <select name="corp_name" onchange="loadYears(this)">
-                    <option value="">기업 선택</option>
+                    <option disabled hidden selected>기업 선택</option>
                     ${getCorpOptions()}
                 </select>
             </div>
 
             <div>
-                <label>연도 선택</label>
-                <select name="year"></select>
+                <select name="year">
+                    <!-- 자동 로딩 -->
+                </select>
             </div>
         `;
 

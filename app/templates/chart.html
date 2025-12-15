@@ -7,7 +7,6 @@
 {% block content %}
 <h2>{% if selected_corp %}{{ selected_corp }} {% endif %}재무상태표 차트</h2>
 <form method="POST" id="selectForm">
-    <label>기업 선택:</label>
     <select name="corp" id="corpSelect" onchange="document.getElementById('selectForm').submit()">
         <option value="" disabled hidden {% if not selected_corp %}selected{% endif %}>기업선택</option>
         {% for corp in corp_list %}

@@ -16,17 +16,15 @@
             <!-- 기본 비교 행 -->
             <div class="compare-row row-box">
                 <div>
-                    <label>기업 선택</label>
                     <select name="corp_name" onchange="loadYears(this)">
-                        <option value="">기업 선택</option>
+                        <option disabled hidden {% if not selected_corp %}selected{% endif %}>기업 선택</option>
                         {% for corp in corp_list %}
-                        <option value="{{ corp[0] }}">{{ corp[0] }}</option>
+                        <option value="{{ corp[0] }}" {% if selected_corp==corp[0] %}selected{% endif %}>{{ corp[0] }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div>
-                    <label>연도 선택</label>
                     <select name="year">
                         <!-- 자동 로딩 -->
                     </select>
