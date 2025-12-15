@@ -288,3 +288,36 @@ def get_data_for_compare(corp_name, year):
             cursor.close()
         if conn:
             conn.close()
+
+def get_pie_data(corp_name, year):
+    """
+    파이 차트용 자본총계와 부채총계 데이터를 조회합니다.
+    
+    Args:
+        corp_name (str): 기업 이름
+        year (str): 연도
+        
+    Returns:
+        dict: {'자본총계': amount, '부채총계': amount} 형식의 딕셔너리
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute(f"""
+            SELECT account_nm, amount FROM {TABLE_NAME}
+            WHERE corp_name = %s AND year = %s AND account_nm IN ('자본총계', '부채총계')
+        """, (corp_name, year))
+        
+        rows = cursor.fetchall()
+        data = {row[0]: row[1] for row in rows}
+        return data
+    except mysql.connector.Error as err:
+        print(f"Pie data retrieval failed: {err}")
+        return {}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()

@@ -38,6 +38,11 @@
     {% if selected_corp and selected_year %}
     <h2>{{ selected_corp }} {{ selected_year }}년 재무상태표</h2>
     <canvas id="chart2"></canvas>
+    
+    <h2>{{ selected_corp }} {{ selected_year }}년 자본/부채 구성</h2>
+    <div style="max-width: 600px; margin: 20px auto;">
+        <canvas id="pieChart"></canvas>
+    </div>
     {% endif %}
 </div>
 

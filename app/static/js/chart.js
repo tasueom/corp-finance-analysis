@@ -60,6 +60,67 @@ function initChart2(corpName, year) {
         });
 }
 
+function initPieChart(corpName, year) {
+    if (!corpName || !year) return;
+    
+    fetch(`/pie_data/${corpName}/${year}`)
+        .then(res => res.json())
+        .then(data => {
+            if (Object.keys(data).length === 0) {
+                console.warn('파이 차트 데이터가 없습니다.');
+                return;
+            }
+            
+            const ctx = document.getElementById('pieChart');
+            if (!ctx) return;
+            
+            // 자본총계를 먼저, 부채총계를 나중에 오도록 정렬
+            const sortedLabels = [];
+            const sortedValues = [];
+            
+            if (data['자본총계'] !== undefined) {
+                sortedLabels.push('자본총계');
+                sortedValues.push(data['자본총계']);
+            }
+            if (data['부채총계'] !== undefined) {
+                sortedLabels.push('부채총계');
+                sortedValues.push(data['부채총계']);
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: sortedLabels,
+                    datasets: [{
+                        data: sortedValues,
+                        backgroundColor: ['#36A2EB', '#FF6384']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    let value = context.parsed || 0;
+                                    return label + ': ' + value.toLocaleString('ko-KR') + '원';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('파이 차트 데이터 로드 실패:', error);
+        });
+}
+
 // 비교 차트 렌더링 함수
 let compareChartInstance = null;
 
@@ -115,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (corpName && year) {
         initChart2(corpName, year);
+        initPieChart(corpName, year);
     }
 });
 

@@ -335,6 +335,12 @@ def api_get_years():
     years = [y[0] for y in years]
     return jsonify({'years': years})
 
+@app.route('/pie_data/<corp>/<year>')
+def pie_data(corp, year):
+    """파이 차트 데이터 API"""
+    data = db.get_pie_data(corp, year)
+    return jsonify(data)
+
 # ================================
 # 수현: 명함 OCR 라우터
 # ================================
