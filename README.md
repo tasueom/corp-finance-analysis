@@ -26,11 +26,11 @@ DART(Data Analysis, Retrieval and Transfer system) Open API를 활용하여 기�
 ## 프로젝트 구조
 
 ```
-team2-corp-anal/
+corp-finance-analysis/
 ├── app/
 │   ├── __init__.py          # Flask 앱 초기화
 │   ├── routes.py            # 라우팅 및 요청 처리
-│   ├── service.py           # 비즈니스 로직 (API 호출, 데이터 처리)
+│   ├── service.py           # 비즈니스 로직 (API 호출, 데이터 처리, PDF 생성)
 │   ├── db.py                # 데이터베이스 연동
 │   ├── templates/           # HTML 템플릿
 │   │   ├── layout.html
@@ -44,6 +44,9 @@ team2-corp-anal/
 │   └── static/              # 정적 파일
 │       ├── css/
 │       │   └── style.css
+│       ├── images/
+│       │   ├── favicon.png
+│       │   └── title.png
 │       └── js/
 │           ├── chart.js
 │           ├── search.js
