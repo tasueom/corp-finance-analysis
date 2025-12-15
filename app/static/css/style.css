@@ -340,6 +340,7 @@ tr:hover {
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
+    /* 공통 테이블 스타일 적용 */
 }
 
 .metrics-section {
@@ -359,18 +360,11 @@ tr:hover {
 .metrics-table {
     width: 100%;
     border-collapse: collapse;
-    border: 1px solid #ddd;
-}
-
-.metrics-table thead tr {
-    background-color: #f5f5f5;
 }
 
 .metrics-table th {
     padding: 10px;
     text-align: left;
-    border: 1px solid #ddd;
-    background-color: #f5f5f5;
 }
 
 .metrics-table th.text-right {
@@ -379,7 +373,6 @@ tr:hover {
 
 .metrics-table td {
     padding: 10px;
-    border: 1px solid #ddd;
 }
 
 .metrics-table td.text-right {
