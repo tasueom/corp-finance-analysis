@@ -9,21 +9,13 @@ from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
 from app import db
-import pandas as pd
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
-from sklearn.model_selection import train_test_split
 import numpy as np
 from io import BytesIO
-import matplotlib
-matplotlib.use('Agg')  # GUI 백엔드 없이 사용 (Flask 환경에서 필요)
-import matplotlib.pyplot as plt
-from matplotlib import font_manager, rc
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.utils import ImageReader
+
+# 무거운 라이브러리들은 지연 로딩 (lazy loading)으로 변경하여 앱 시작 시간 단축
+# - sklearn: 예측 기능 사용 시에만 import
+# - matplotlib: PDF 차트 생성 시에만 import
+# - reportlab: PDF 생성 시에만 import
 
 # .env 파일 로드 (명시적으로 경로 지정 및 여러 경로 시도)
 base_dir = Path(__file__).parent.parent
@@ -736,6 +728,11 @@ def scikit():
     return pivot, target_df
 
 def train_model(pivot, target_df):
+    # sklearn 지연 로딩
+    from sklearn.linear_model import LinearRegression
+    from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+    from sklearn.model_selection import train_test_split
+    
     # ✅ 타겟 pivot (account_id 기준)
     target_pivot = target_df.pivot_table(
         index=["corp_name","year"],
@@ -1250,6 +1247,12 @@ def generate_pdf_chart_image(rows, selected_corp, selected_year):
     Returns:
         BytesIO: 차트 이미지가 저장된 BytesIO 객체
     """
+    # matplotlib 지연 로딩
+    import matplotlib
+    matplotlib.use('Agg')  # GUI 백엔드 없이 사용 (Flask 환경에서 필요)
+    import matplotlib.pyplot as plt
+    from matplotlib import font_manager, rc
+    
     # 중요한 재무상태표 항목만 필터링 (account_id 기준)
     important_account_ids = [
         "ifrs-full_Assets",                    # 자산총계
@@ -1312,6 +1315,13 @@ def generate_pdf_document(rows, selected_corp, selected_year, chart_image_buffer
     Returns:
         BytesIO: PDF 문서가 저장된 BytesIO 객체
     """
+    # reportlab 지연 로딩
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib.utils import ImageReader
+    
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
