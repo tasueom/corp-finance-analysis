@@ -8,14 +8,14 @@
 <h2>재무상태표 데이터 조회</h2>
 
 <div class="download-buttons">
-    <p>전체 재무상태표 다운로드</p>
-    <a href="{{ url_for('export_csv') }}" class="btn-download btn-csv" title="CSV 다운로드">
+    <p>재무상태표 다운로드</p>
+    <a href="{{ url_for('export_csv') }}" class="btn-download btn-csv" title="전체 기업 CSV 다운로드">
         <i class="fas fa-file-csv"></i>
     </a>
-    <a href="{{ url_for('export_json')}}" class="btn-download btn-json" title="JSON 다운로드">
+    <a href="{{ url_for('export_json')}}" class="btn-download btn-json" title="전체 기업 JSON 다운로드">
         <i class="fas fa-file-code"></i>
     </a>
-    <a href="{{ url_for('export_pdf', corp_name=selected_corp, year=selected_year) }}" class="btn-download btn-pdf" title="PDF 다운로드">
+    <a href="{{ url_for('export_pdf', corp_name=selected_corp, year=selected_year) }}" class="btn-download btn-pdf" title="선택 기업 PDF 다운로드">
         <i class="fas fa-file-pdf"></i>
     </a>
 </div>
