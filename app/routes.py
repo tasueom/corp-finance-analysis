@@ -378,7 +378,15 @@ def pie_data(corp, year):
     data = db.get_pie_data(corp, year)
     return jsonify(data)
 
-reader = easyocr.Reader(['ko', 'en'], gpu=False)
+# EasyOCR Reader는 지연 로딩 (lazy loading)으로 변경하여 앱 시작 시간 단축
+_ocr_reader = None
+
+def get_ocr_reader():
+    """EasyOCR Reader를 지연 로딩합니다 (처음 호출 시에만 초기화)"""
+    global _ocr_reader
+    if _ocr_reader is None:
+        _ocr_reader = easyocr.Reader(['ko', 'en'], gpu=False)
+    return _ocr_reader
 
 @app.route('/ocr', methods=['GET', 'POST'])
 def ocr():
@@ -412,7 +420,8 @@ def ocr():
         img = Image.open(image_bytes)
         img_array = np.array(img)
         
-        # easyocr 실행 (numpy 배열 사용)
+        # easyocr 실행 (numpy 배열 사용) - 지연 로딩
+        reader = get_ocr_reader()
         text_lines = reader.readtext(img_array, detail=0)
 
     return render_template(
