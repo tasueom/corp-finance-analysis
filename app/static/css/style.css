@@ -9,13 +9,13 @@ body {
 }
 
 h1 {
-    color: #2c3e50;
-    border-bottom: 3px solid #3498db;
+    color: #225d86;
+    border-bottom: 3px solid #bd9e52;
     padding-bottom: 10px;
 }
 
 h2, h3 {
-    color: #34495e;
+    color: #225d86;
     margin-top: 30px;
 }
 
@@ -32,14 +32,14 @@ nav ul {
 nav li a {
     text-decoration: none;
     padding: 8px 16px;
-    background-color: #3498db;
+    background-color: #225d86;
     color: white;
     border-radius: 4px;
     transition: background-color 0.3s;
 }
 
 nav li a:hover {
-    background-color: #2980b9;
+    background-color: #bd9e52;
 }
 
 /* 폼 스타일 */
@@ -64,7 +64,7 @@ input[type="text"] {
 
 button {
     padding: 8px 16px;
-    background-color: #27ae60;
+    background-color: #225d86;
     color: white;
     border: none;
     border-radius: 4px;
@@ -74,7 +74,7 @@ button {
 }
 
 button:hover {
-    background-color: #229954;
+    background-color: #bd9e52;
 }
 
 /* 테이블 스타일 */
@@ -86,7 +86,7 @@ table {
 }
 
 th {
-    background-color: #34495e;
+    background-color: #225d86;
     color: white;
     padding: 12px;
     text-align: left;
@@ -126,7 +126,7 @@ tr:hover {
 .download-buttons p {
     margin: 0;
     font-weight: 500;
-    color: #2c3e50;
+    color: #225d86;
 }
 
 .btn-download {
@@ -214,13 +214,13 @@ tr:hover {
 }
 
 .readme-header {
-    background-color: #34495e;
+    background-color: #225d86;
     color: white;
     padding: 15px 20px;
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid #2c3e50;
+    border-bottom: 1px solid #1a4a6b;
 }
 
 .readme-header i {
@@ -249,7 +249,7 @@ tr:hover {
 
 .readme-content h1 {
     font-size: 1.8em;
-    border-bottom: 3px solid #3498db;
+    border-bottom: 3px solid #bd9e52;
     padding-bottom: 10px;
 }
 
@@ -291,14 +291,14 @@ tr:hover {
 }
 
 .readme-content blockquote {
-    border-left: 4px solid #3498db;
+    border-left: 4px solid #225d86;
     padding-left: 15px;
     margin: 15px 0;
     color: #666;
 }
 
 .readme-content a {
-    color: #3498db;
+    color: #225d86;
     text-decoration: none;
 }
 
@@ -320,7 +320,7 @@ tr:hover {
 }
 
 .readme-content table th {
-    background-color: #34495e;
+    background-color: #225d86;
     color: white;
 }
 
@@ -372,6 +372,8 @@ tr:hover {
 }
 
 .metrics-table th {
+    background-color: #225d86;
+    color: white;
     padding: 10px;
     text-align: left;
 }
@@ -401,7 +403,7 @@ tr:hover {
     margin-top: 20px;
     padding: 15px;
     background-color: #f9f9f9;
-    border-left: 4px solid #4CAF50;
+    border-left: 4px solid #225d86;
     border-radius: 4px;
 }
 
@@ -437,8 +439,8 @@ tr:hover {
 .metrics-info-blue-box {
     margin-top: 15px;
     padding: 12px;
-    background-color: #e7f3ff;
-    border-left: 4px solid #2196F3;
+    background-color: #e8f0f5;
+    border-left: 4px solid #225d86;
     border-radius: 4px;
 }
 
