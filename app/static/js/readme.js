@@ -48,69 +48,74 @@ function renderReadme(readmeMarkdown) {
     links.forEach(link => {
         const href = link.getAttribute('href');
         if (href && href.startsWith('#')) {
-            let targetId = href.substring(1);
+            // 각 링크의 href와 linkText를 클로저로 캡처 (값으로)
+            const originalTargetId = href.substring(1);
             const linkText = link.textContent.trim();
 
-            // URL 디코딩 (한글 등이 인코딩된 경우 처리)
+            // URL 디코딩된 targetId를 미리 계산하여 캡처
+            let decodedTargetId = originalTargetId;
             try {
-                targetId = decodeURIComponent(targetId);
+                decodedTargetId = decodeURIComponent(originalTargetId);
             } catch (e) {
                 // 디코딩 실패 시 원본 사용
             }
 
-            // 링크 클릭 이벤트
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
+            // 각 링크마다 고유한 값을 캡처하기 위해 즉시 실행 함수 사용
+            (function(capturedTargetId, capturedLinkText) {
+                // 링크 클릭 이벤트
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
 
-                let targetElement = null;
+                    let targetElement = null;
 
-                // 1. URL 디코딩된 ID로 직접 찾기
-                targetElement = document.getElementById(targetId);
+                    // 1. URL 디코딩된 ID로 직접 찾기
+                    targetElement = document.getElementById(capturedTargetId);
 
-                // 2. Map에서 ID로 찾기
-                if (!targetElement && headingMap.has(targetId)) {
-                    targetElement = headingMap.get(targetId);
-                }
-
-                // 3. 링크 텍스트를 slugify해서 Map에서 찾기
-                if (!targetElement) {
-                    const linkId = slugify(linkText);
-                    if (headingMap.has(linkId)) {
-                        targetElement = headingMap.get(linkId);
+                    // 2. Map에서 ID로 찾기
+                    if (!targetElement && headingMap.has(capturedTargetId)) {
+                        targetElement = headingMap.get(capturedTargetId);
                     }
-                }
 
-                // 4. 링크 텍스트로 직접 찾기 (대소문자 무시)
-                if (!targetElement && headingMap.has(linkText.toLowerCase())) {
-                    targetElement = headingMap.get(linkText.toLowerCase());
-                }
-
-                // 5. 모든 제목을 순회하며 정확히 매칭
-                if (!targetElement) {
-                    const headings = readmeContent.querySelectorAll('h1, h2, h3, h4, h5, h6');
-                    for (let i = 0; i < headings.length; i++) {
-                        const heading = headings[i];
-                        const headingText = heading.textContent.trim();
-                        const headingId = slugify(headingText);
-
-                        // 여러 방법으로 매칭 시도
-                        if (headingId === targetId ||
-                            headingId === slugify(linkText) ||
-                            headingText.toLowerCase() === linkText.toLowerCase() ||
-                            headingText === linkText) {
-                            targetElement = heading;
-                            break;
+                    // 3. 링크 텍스트를 slugify해서 Map에서 찾기
+                    if (!targetElement) {
+                        const linkId = slugify(capturedLinkText);
+                        if (headingMap.has(linkId)) {
+                            targetElement = headingMap.get(linkId);
                         }
                     }
-                }
 
-                if (targetElement) {
-                    // 부드러운 스크롤
-                    const yOffset = -20;
-                    const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                    window.scrollTo({ top: y, behavior: 'smooth' });
-                }
-            });
+                    // 4. 링크 텍스트로 직접 찾기 (대소문자 무시)
+                    if (!targetElement && headingMap.has(capturedLinkText.toLowerCase())) {
+                        targetElement = headingMap.get(capturedLinkText.toLowerCase());
+                    }
+
+                    // 5. 모든 제목을 순회하며 정확히 매칭
+                    if (!targetElement) {
+                        const headings = readmeContent.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                        for (let i = 0; i < headings.length; i++) {
+                            const heading = headings[i];
+                            const headingText = heading.textContent.trim();
+                            const headingId = slugify(headingText);
+
+                            // 여러 방법으로 매칭 시도
+                            if (headingId === capturedTargetId ||
+                                headingId === slugify(capturedLinkText) ||
+                                headingText.toLowerCase() === capturedLinkText.toLowerCase() ||
+                                headingText === capturedLinkText) {
+                                targetElement = heading;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetElement) {
+                        // 부드러운 스크롤
+                        const yOffset = -20;
+                        const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                        window.scrollTo({ top: y, behavior: 'smooth' });
+                    }
+                });
+            })(decodedTargetId, linkText); // 값으로 전달하여 캡처
         }
     });
 }
