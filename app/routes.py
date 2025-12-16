@@ -1,13 +1,9 @@
 from flask import render_template, request, redirect, url_for, session, jsonify, flash, send_file
 from app import app, service, db
 from io import BytesIO
-from app.utils import format_korean_number, get_latest_year_from_years, check_duplicate_compare_items
-from app.finance_service import prepare_view_data
-from app.ml_service import validate_prediction_year
-from app.ocr_service import process_image
 from datetime import datetime
 
-app.jinja_env.filters["krnum"] = format_korean_number
+app.jinja_env.filters["krnum"] = service.format_korean_number
 
 @app.route('/')
 def index():
@@ -98,13 +94,13 @@ def view():
         if action == "select_corp":
             selected_corp = request.form.get("corp_name")
             years = db.get_year_list(selected_corp)
-            selected_year, rows = prepare_view_data(selected_corp, None, years)
+            selected_year, rows = service.prepare_view_data(selected_corp, None, years)
 
         elif action == "select_year":
             selected_corp = request.form.get("corp_name")
             selected_year = request.form.get("year")
             years = db.get_year_list(selected_corp)
-            selected_year, rows = prepare_view_data(selected_corp, selected_year, years)
+            selected_year, rows = service.prepare_view_data(selected_corp, selected_year, years)
         else:
             selected_corp = None
             selected_year = None
@@ -114,7 +110,7 @@ def view():
         
         if selected_corp:
             years = db.get_year_list(selected_corp)
-            selected_year, rows = prepare_view_data(selected_corp, selected_year, years)
+            selected_year, rows = service.prepare_view_data(selected_corp, selected_year, years)
         else:
             selected_corp = None
             selected_year = None
@@ -143,7 +139,7 @@ def chart():
         years = db.get_year_list(selected_corp)
         year_list = [row[0] for row in years]
         if not selected_year and years:
-            selected_year = get_latest_year_from_years(years)
+            selected_year = service.get_latest_year_from_years(years)
     
     return render_template('chart.html',
                             corp_list=corp_list,
@@ -209,7 +205,7 @@ def export_pdf():
     
     years = db.get_year_list(selected_corp)
     if not selected_year and years:
-        selected_year = get_latest_year_from_years(years)
+        selected_year = service.get_latest_year_from_years(years)
         
     if selected_year:
         rows = db.get_account_data_by_year(selected_corp, selected_year)
@@ -253,7 +249,7 @@ def predict():
             flash('예측 연도를 입력해주세요.', 'error')
         else:
             try:
-                is_valid, year_int, error_msg = validate_prediction_year(selected_year, min_year)
+                is_valid, year_int, error_msg = service.validate_prediction_year(selected_year, min_year)
                 if not is_valid:
                     flash(error_msg, 'error')
                 else:
@@ -304,7 +300,7 @@ def compare():
             )
         
         # 동일한 옵션(기업+연도 조합) 중복 체크
-        compare_list, duplicates = check_duplicate_compare_items(compare_list)
+        compare_list, duplicates = service.check_duplicate_compare_items(compare_list)
         
         if duplicates:
             flash(f"동일한 옵션이 중복 선택되었습니다: {', '.join(duplicates)}", "warning")
@@ -365,7 +361,7 @@ def ocr():
         if not file:
             return render_template('ocr.html', error="파일이 없습니다.")
 
-        image_data_uri, text_lines = process_image(file)
+        image_data_uri, text_lines = service.process_image(file)
 
     return render_template(
         'ocr.html',

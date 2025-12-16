@@ -53,3 +53,13 @@ def generate_pdf_chart_image(rows, selected_corp, selected_year):
 def generate_pdf_document(rows, selected_corp, selected_year, chart_image_buffer):
     from app.pdf_service import generate_pdf_document
     return generate_pdf_document(rows, selected_corp, selected_year, chart_image_buffer)
+
+# OCR 서비스는 지연 로딩
+def process_image(file):
+    from app.ocr_service import process_image
+    return process_image(file)
+
+# ML 서비스의 validate 함수
+def validate_prediction_year(year_str, min_year):
+    from app.utils import validate_year
+    return validate_year(year_str, min_year)
