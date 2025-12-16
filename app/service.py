@@ -625,9 +625,9 @@ def scikit():
     ]
 
     # ✅ 입력값(Feature) 계정 ID
+    # 회계 방정식으로 직접 계산 가능한 항목(유동자산+비유동자산, 유동부채+비유동부채)은 제외
+    # 대신 세부 항목들만 사용하여 더 현실적인 예측 모델 구축
     COMMON_IDS = [
-        "ifrs-full_CurrentAssets",
-        "ifrs-full_NoncurrentAssets",
         "ifrs-full_CashAndCashEquivalents",
         "ifrs-full_Inventories",
         "ifrs-full_PropertyPlantAndEquipment",
@@ -635,8 +635,6 @@ def scikit():
         "ifrs-full_CurrentTradeReceivables",
         "ifrs-full_OtherCurrentAssets",
 
-        "ifrs-full_CurrentLiabilities",
-        "ifrs-full_NoncurrentLiabilities",
         "ifrs-full_LongtermBorrowings",
         "ifrs-full_CurrentProvisions",
         "ifrs-full_OtherCurrentLiabilities",
@@ -675,6 +673,7 @@ def train_model(pivot, target_df):
     from sklearn.linear_model import LinearRegression
     from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
     from sklearn.model_selection import train_test_split
+    import warnings
     
     # ✅ 타겟 pivot (account_id 기준)
     target_pivot = target_df.pivot_table(
@@ -692,9 +691,9 @@ def train_model(pivot, target_df):
         raise ValueError("학습할 데이터가 없습니다. 재무 데이터를 먼저 저장해주세요.")
 
     # ✅ Feature 계정 ID
+    # 회계 방정식으로 직접 계산 가능한 항목(유동자산+비유동자산, 유동부채+비유동부채)은 제외
+    # 대신 세부 항목들만 사용하여 더 현실적인 예측 모델 구축
     COMMON_IDS = [
-        "ifrs-full_CurrentAssets",
-        "ifrs-full_NoncurrentAssets",
         "ifrs-full_CashAndCashEquivalents",
         "ifrs-full_Inventories",
         "ifrs-full_PropertyPlantAndEquipment",
@@ -702,8 +701,6 @@ def train_model(pivot, target_df):
         "ifrs-full_CurrentTradeReceivables",
         "ifrs-full_OtherCurrentAssets",
 
-        "ifrs-full_CurrentLiabilities",
-        "ifrs-full_NoncurrentLiabilities",
         "ifrs-full_LongtermBorrowings",
         "ifrs-full_CurrentProvisions",
         "ifrs-full_OtherCurrentLiabilities",
@@ -714,6 +711,9 @@ def train_model(pivot, target_df):
         "ifrs-full_SharePremium",
         "ifrs-full_NoncontrollingInterests"
     ]
+    
+    # 존재하는 COMMON_IDS만 필터링
+    COMMON_IDS = [cid for cid in COMMON_IDS if cid in train_df.columns]
 
     # ✅ Target 계정 ID
     TARGET_IDS = [
@@ -743,15 +743,37 @@ def train_model(pivot, target_df):
         raise ValueError("데이터에 결측값이 있습니다. 모든 계정 ID의 데이터가 필요합니다.")
 
     # 학습 데이터와 검증 데이터 분리 (80% 학습, 20% 검증)
-    # 데이터가 너무 적으면 분리하지 않음 (최소 5개 이상 필요)
-    if len(X) >= 5:
-        X_train, X_val, y_train, y_val = train_test_split(
-            X, y, test_size=0.2, random_state=42, shuffle=True
+    # 인덱스를 기준으로 분리하여 같은 기업/연도가 학습/검증에 동시에 포함되지 않도록 함
+    if len(X) >= 2:
+        # 데이터가 적을 때는 test_size를 조정하여 최소 1개는 검증 데이터로 분리
+        if len(X) <= 5:
+            # 데이터가 5개 이하일 때는 최소 1개를 검증 데이터로 분리
+            test_size = max(1.0 / len(X), 0.2)  # 최소 1개, 최대 20%
+        else:
+            test_size = 0.2  # 일반적인 경우 20%
+        
+        # 인덱스를 기준으로 분리 (같은 기업/연도가 학습/검증에 동시에 포함되지 않도록)
+        train_indices = X.index.tolist()
+        train_idx, val_idx = train_test_split(
+            train_indices, test_size=test_size, random_state=42, shuffle=True
         )
+        
+        # 인덱스를 사용하여 데이터 분리
+        X_train = X.loc[train_idx]
+        X_val = X.loc[val_idx]
+        y_train = y.loc[train_idx]
+        y_val = y.loc[val_idx]
+        
+        # 검증: 데이터가 실제로 분리되었는지 확인
+        if len(X_train) == 0 or len(X_val) == 0:
+            raise ValueError("데이터 분리 실패: 학습 데이터 {}개, 검증 데이터 {}개".format(len(X_train), len(X_val)))
+        
+        # 검증: 학습/검증 데이터가 겹치지 않는지 확인
+        if set(X_train.index) & set(X_val.index):
+            raise ValueError("학습 데이터와 검증 데이터가 겹칩니다!")
     else:
-        # 데이터가 적으면 학습 데이터로만 평가 (과적합 경고 포함)
-        X_train, X_val = X, X
-        y_train, y_val = y, y
+        # 데이터가 1개뿐이면 학습할 수 없음
+        raise ValueError("학습을 위해서는 최소 2개 이상의 데이터가 필요합니다. 현재 데이터 개수: {}".format(len(X)))
     
     # ✅ 모델 학습
     model = LinearRegression()
@@ -772,8 +794,26 @@ def train_model(pivot, target_df):
         y_true_col = y_true.iloc[:, i].values if hasattr(y_true, 'iloc') else y_true[:, i]
         y_pred_col = y_pred[:, i]
         
+        # 결정계수 (R²) 계산 전에 검증
+        # 회계 방정식 때문에 완벽한 선형 관계가 있을 수 있음
+        # 예: 자산총계 = 유동자산 + 비유동자산
+        
         # 결정계수 (R²)
         r2 = r2_score(y_true_col, y_pred_col)
+        
+        # R²가 1에 너무 가까우면 (0.999 이상) 회계 방정식 때문일 수 있음
+        # 하지만 실제 오차도 확인해야 함
+        if r2 > 0.9999:
+            # 실제 오차 확인
+            diff = np.abs(y_true_col - y_pred_col)
+            relative_error = diff / (np.abs(y_true_col) + 1e-10)  # 0으로 나누기 방지
+            
+            # 상대 오차가 매우 작으면 (0.1% 미만) 회계 방정식 때문일 가능성 높음
+            if np.mean(relative_error) < 0.001:
+                # 회계 방정식으로 직접 계산 가능한 경우이므로 R²를 조정
+                # 실제로는 완벽하지만, 더 현실적인 평가를 위해 약간 조정
+                # 하지만 이건 데이터의 특성상 정상일 수 있음
+                pass
         
         # 평균 제곱 오차 (MSE)
         mse = mean_squared_error(y_true_col, y_pred_col)
