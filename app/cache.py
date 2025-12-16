@@ -3,7 +3,7 @@
 Flask 앱 시작 시 백그라운드에서 기업 코드 목록을 로드합니다.
 """
 import threading
-from app.service import load_corp_code_cache
+from app.api_service import load_corp_code_cache
 
 
 def init_cache():

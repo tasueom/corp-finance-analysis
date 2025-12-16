@@ -1,13 +1,11 @@
 from flask import render_template, request, redirect, url_for, session, jsonify, flash, send_file
 from app import app, service, db
 from io import BytesIO
-from app.service import format_korean_number
-import easyocr
-import os
-import cv2
-import base64
-import numpy as np
-from PIL import Image
+from app.utils import format_korean_number, get_latest_year_from_years, check_duplicate_compare_items
+from app.finance_service import prepare_view_data
+from app.ml_service import validate_prediction_year
+from app.ocr_service import process_image
+from datetime import datetime
 
 app.jinja_env.filters["krnum"] = format_korean_number
 
@@ -19,14 +17,10 @@ def index():
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     if request.method == 'POST':
-        # 기업 선택 후 재무제표 조회
         corp_name = request.form.get('corp_name')
         if corp_name:
             try:
-                # 10년치 DataFrame 가져오기
                 df = service.get_finance_dataframe_10years(corp_name)
-                
-                # DataFrame을 딕셔너리 리스트로 변환하여 템플릿에 전달
                 data = df.to_dict('records')
                 columns = df.columns.tolist()
                 
@@ -93,54 +87,38 @@ def insert_data():
 
 @app.route('/view', methods=['GET', 'POST'])
 def view():
-    corp_list = db.get_corp_list()              # 기업 리스트 가져오기
+    corp_list = db.get_corp_list()
     years = []
     rows = []
     indicators = None
     
-    # POST 요청에서 선택값 가져오기
     if request.method == "POST":
         action = request.form.get("action")
 
-        # 1) 기업 선택 → 연도 목록 표시 및 최근 연도 자동 선택
         if action == "select_corp":
             selected_corp = request.form.get("corp_name")
             years = db.get_year_list(selected_corp)
-            # 최근 연도 자동 선택 (내림차순 정렬되어 있으므로 첫 번째가 최근 연도)
-            if years:
-                selected_year = str(years[0][0])  # 최근 연도 자동 선택
-                rows = db.get_account_data_by_year(selected_corp, selected_year)
-            else:
-                selected_year = None
-                rows = []
+            selected_year, rows = prepare_view_data(selected_corp, None, years)
 
-        # 2) 연도 선택 → 데이터 조회
         elif action == "select_year":
             selected_corp = request.form.get("corp_name")
             selected_year = request.form.get("year")
-
-            years = db.get_year_list(selected_corp)                  # 연도 다시 로딩 (유지)
-            rows = db.get_account_data_by_year(selected_corp, selected_year)
+            years = db.get_year_list(selected_corp)
+            selected_year, rows = prepare_view_data(selected_corp, selected_year, years)
         else:
             selected_corp = None
             selected_year = None
     else:
-        # GET 요청 시 쿼리 파라미터에서 가져오기
         selected_corp = request.args.get("corp_name")
         selected_year = request.args.get("year")
         
         if selected_corp:
             years = db.get_year_list(selected_corp)
-            # 연도가 선택되지 않았으면 최근 연도 자동 선택
-            if not selected_year and years:
-                selected_year = str(years[0][0])  # 최근 연도 자동 선택
-            if selected_year:
-                rows = db.get_account_data_by_year(selected_corp, selected_year)
+            selected_year, rows = prepare_view_data(selected_corp, selected_year, years)
         else:
             selected_corp = None
             selected_year = None
     
-    # 재무지표 계산 (POST와 GET 모두에서 rows가 있으면 계산)
     indicators = service.calculate_financial_indicators(rows) if rows else None
 
     return render_template(
@@ -162,10 +140,10 @@ def chart():
     year_list = []
     
     if selected_corp:
-        year_list = [row[0] for row in db.get_year_list(selected_corp)]
-        # 연도가 선택되지 않았으면 최근 연도 자동 선택
-        if not selected_year and year_list:
-            selected_year = str(year_list[0])  # 최근 연도 자동 선택
+        years = db.get_year_list(selected_corp)
+        year_list = [row[0] for row in years]
+        if not selected_year and years:
+            selected_year = get_latest_year_from_years(years)
     
     return render_template('chart.html',
                             corp_list=corp_list,
@@ -230,9 +208,8 @@ def export_pdf():
         return redirect(url_for("view", corp_name=selected_corp, year=selected_year))
     
     years = db.get_year_list(selected_corp)
-
     if not selected_year and years:
-        selected_year = str(years[0][0])
+        selected_year = get_latest_year_from_years(years)
         
     if selected_year:
         rows = db.get_account_data_by_year(selected_corp, selected_year)
@@ -243,10 +220,7 @@ def export_pdf():
         flash("해당 연도의 데이터가 존재하지 않습니다.", "error")
         return redirect(url_for("view"))
     
-    # 차트 이미지 생성
     chart_image_buffer = service.generate_pdf_chart_image(rows, selected_corp, selected_year)
-    
-    # PDF 문서 생성
     pdf_buffer = service.generate_pdf_document(rows, selected_corp, selected_year, chart_image_buffer)
     
     filename = f"{selected_corp}_{selected_year}_재무상태표.pdf"
@@ -261,8 +235,6 @@ def export_pdf():
 @app.route("/predict", methods=['GET', 'POST'])
 def predict():
     """머신러닝 모델을 사용한 재무 지표 예측"""
-    from datetime import datetime
-    
     corp_list = [row[0] for row in db.get_corp_list()]
     selected_corp = request.form.get('corp') if request.method == 'POST' else request.args.get('corp')
     selected_year = request.form.get('year') if request.method == 'POST' else request.args.get('year')
@@ -271,36 +243,26 @@ def predict():
     metrics = None
     avg_metrics = None
     
-    # 최소 연도 계산 (시스템 날짜의 내년도)
     current_year = datetime.now().year
     min_year = current_year + 1
     
-    # 예측하기 버튼이 눌렸을 때만 연도 검사 및 예측 수행
     predict_btn = request.form.get('predict_btn')
     
     if selected_corp and predict_btn == 'predict':
-        # 예측하기 버튼을 눌렀을 때만 연도 검사
         if not selected_year:
             flash('예측 연도를 입력해주세요.', 'error')
         else:
             try:
-                # 연도 유효성 검사
-                year_int = int(selected_year)
-                if year_int < min_year:
-                    flash(f'예측 연도는 {min_year}년 이상이어야 합니다.', 'error')
+                is_valid, year_int, error_msg = validate_prediction_year(selected_year, min_year)
+                if not is_valid:
+                    flash(error_msg, 'error')
                 else:
-                    # 데이터 준비
                     pivot, target_df = service.scikit()
-                    
-                    # 모델 학습 (성능 지표 포함)
                     model, COMMON_IDS, TARGET_IDS, metrics, avg_metrics = service.train_model(pivot, target_df)
-                    
-                    # 예측 수행 (연도 전달)
                     prediction_result = service.predict_company(model, pivot, selected_corp, COMMON_IDS, TARGET_IDS, target_year=year_int)
                     predicted_year = year_int
                     
             except ValueError as e:
-                # 숫자가 아닌 경우 또는 다른 ValueError
                 if 'invalid literal' in str(e) or 'could not convert' in str(e):
                     flash('올바른 연도를 입력해주세요.', 'error')
                 else:
@@ -342,21 +304,11 @@ def compare():
             )
         
         # 동일한 옵션(기업+연도 조합) 중복 체크
-        seen = set()
-        duplicates = []
-        for item in compare_list:
-            key = (item["corp"], item["year"])
-            if key in seen:
-                duplicates.append(f"{item['corp']}({item['year']})")
-            else:
-                seen.add(key)
+        compare_list, duplicates = check_duplicate_compare_items(compare_list)
         
         if duplicates:
             flash(f"동일한 옵션이 중복 선택되었습니다: {', '.join(duplicates)}", "warning")
-            # 중복 제거
-            compare_list = [{"corp": corp, "year": year} for corp, year in seen]
             
-            # 중복 제거 후에도 최소 2개 이상인지 확인
             if len(compare_list) < 2:
                 flash("중복 제거 후 비교 대상이 부족합니다. 최소 2개 이상의 비교 대상을 선택하세요.", "error")
                 return render_template(
@@ -402,20 +354,10 @@ def pie_data(corp, year):
     data = db.get_pie_data(corp, year)
     return jsonify(data)
 
-# EasyOCR Reader는 지연 로딩 (lazy loading)으로 변경하여 앱 시작 시간 단축
-_ocr_reader = None
-
-def get_ocr_reader():
-    """EasyOCR Reader를 지연 로딩합니다 (처음 호출 시에만 초기화)"""
-    global _ocr_reader
-    if _ocr_reader is None:
-        _ocr_reader = easyocr.Reader(['ko', 'en'], gpu=False)
-    return _ocr_reader
-
 @app.route('/ocr', methods=['GET', 'POST'])
 def ocr():
     """OCR 기능"""
-    image_base64 = None
+    image_data_uri = None
     text_lines = None
 
     if request.method == 'POST':
@@ -423,33 +365,10 @@ def ocr():
         if not file:
             return render_template('ocr.html', error="파일이 없습니다.")
 
-        # 파일을 BytesIO로 읽기
-        image_bytes = BytesIO()
-        file.save(image_bytes)
-        image_bytes.seek(0)
-        
-        # 이미지를 base64로 인코딩 (화면 표시용)
-        import base64
-        image_base64 = base64.b64encode(image_bytes.read()).decode('utf-8')
-        image_bytes.seek(0)
-        
-        # 이미지 형식 확인
-        file_ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'png'
-        mime_type = f'image/{file_ext}' if file_ext in ['jpg', 'jpeg', 'png', 'gif'] else 'image/png'
-        image_data_uri = f'data:{mime_type};base64,{image_base64}'
-        
-        # OCR 실행을 위해 numpy 배열로 변환
-        import numpy as np
-        from PIL import Image
-        img = Image.open(image_bytes)
-        img_array = np.array(img)
-        
-        # easyocr 실행 (numpy 배열 사용) - 지연 로딩
-        reader = get_ocr_reader()
-        text_lines = reader.readtext(img_array, detail=0)
+        image_data_uri, text_lines = process_image(file)
 
     return render_template(
         'ocr.html',
-        image_data_uri=image_data_uri if image_base64 else None,
+        image_data_uri=image_data_uri,
         text_lines=text_lines
     )
