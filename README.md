@@ -59,9 +59,17 @@ corp-finance-analysis/
 ├── app/
 │   ├── __init__.py          # Flask 앱 초기화
 │   ├── routes.py            # 라우팅 및 요청 처리
-│   ├── service.py           # 비즈니스 로직 (API 호출, 데이터 처리, PDF 생성)
+│   ├── service.py           # 통합 서비스 모듈 (모든 서비스를 통합하여 제공)
 │   ├── db.py                # 데이터베이스 연동
 │   ├── cache.py             # 기업 코드 캐시 관리 (메모리 캐싱)
+│   │
+│   ├── api_service.py       # DART API 관련 서비스 (기업 코드 조회, 재무제표 데이터 조회)
+│   ├── finance_service.py   # 재무 데이터 처리 서비스 (데이터 저장, 내보내기, 비교, 재무지표 계산)
+│   ├── ml_service.py        # 머신러닝 서비스 (모델 학습, 예측)
+│   ├── pdf_service.py       # PDF 생성 서비스 (차트 이미지, PDF 문서 생성)
+│   ├── ocr_service.py       # OCR 서비스 (이미지 텍스트 추출)
+│   ├── utils.py             # 유틸리티 함수 (공통 함수, 검증 함수)
+│   │
 │   ├── templates/           # HTML 템플릿
 │   │   ├── layout.html
 │   │   ├── index.html
@@ -79,14 +87,28 @@ corp-finance-analysis/
 │       │   └── title.png
 │       └── js/
 │           ├── chart.js
-│           ├── search.js
-│           └── compare.js
+│           ├── compare.js
+│           ├── readme.js
+│           └── search.js
 ├── app.py                   # 애플리케이션 진입점
 ├── init_db.py               # 데이터베이스 초기화 스크립트
 ├── README.md
 ├── 기술요소_정리.md           # 기술 스택 및 알고리즘 상세 설명
 └── 캐싱_메커니즘_설명.md      # 기업 코드 검색 최적화 설명
 ```
+
+### 모듈별 역할 분리
+
+- **`routes.py`**: HTTP 요청/응답 처리, 템플릿 렌더링, Flash 메시지 관리
+- **`service.py`**: 통합 서비스 모듈 (모든 서비스를 import하여 기존 코드와의 호환성 유지)
+- **`api_service.py`**: DART API 호출 관련 (기업 코드 조회, 재무제표 데이터 조회)
+- **`finance_service.py`**: 재무 데이터 처리 (DB 저장, 내보내기, 비교, 재무지표 계산)
+- **`ml_service.py`**: 머신러닝 모델 학습 및 예측 (지연 로딩)
+- **`pdf_service.py`**: PDF 생성 (차트 이미지, PDF 문서, 지연 로딩)
+- **`ocr_service.py`**: OCR 기능 (이미지 텍스트 추출, 지연 로딩)
+- **`utils.py`**: 공통 유틸리티 함수 (검증, 포맷팅 등)
+- **`db.py`**: 데이터베이스 쿼리 실행
+- **`cache.py`**: 기업 코드 캐시 관리 (백그라운드 로딩)
 
 ## 설치 및 설정
 
