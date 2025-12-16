@@ -335,11 +335,35 @@ def compare():
                 compare_list.append({"corp": corp, "year": yr})
 
         if len(compare_list) < 2:
+            flash("최소 2개 이상의 비교 대상을 선택하세요.", "error")
             return render_template(
                 "compare.html",
-                corp_list=corp_list,
-                error="최소 2개 이상의 비교 대상을 선택하세요."
+                corp_list=corp_list
             )
+        
+        # 동일한 옵션(기업+연도 조합) 중복 체크
+        seen = set()
+        duplicates = []
+        for item in compare_list:
+            key = (item["corp"], item["year"])
+            if key in seen:
+                duplicates.append(f"{item['corp']}({item['year']})")
+            else:
+                seen.add(key)
+        
+        if duplicates:
+            flash(f"동일한 옵션이 중복 선택되었습니다: {', '.join(duplicates)}", "warning")
+            # 중복 제거
+            compare_list = [{"corp": corp, "year": year} for corp, year in seen]
+            
+            # 중복 제거 후에도 최소 2개 이상인지 확인
+            if len(compare_list) < 2:
+                flash("중복 제거 후 비교 대상이 부족합니다. 최소 2개 이상의 비교 대상을 선택하세요.", "error")
+                return render_template(
+                    "compare.html",
+                    corp_list=corp_list,
+                    error="최소 2개 이상의 비교 대상을 선택하세요."
+                )
 
         # 비교 테이블 생성
         result_df = service.make_compare_table(compare_list)
