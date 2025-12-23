@@ -1,0 +1,11 @@
+flask
+mysql-connector-python
+pandas
+python-dotenv
+requests
+easyocr
+pillow
+numpy
+scikit-learn
+opencv-python
+
