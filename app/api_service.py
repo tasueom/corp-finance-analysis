@@ -262,9 +262,37 @@ def get_finance_dataframe_10years(corp_name):
         raise ValueError(f"기업 '{corp_name}'을 찾을 수 없습니다.")
     
     current_year = datetime.now().year
-    start_year = current_year - 1
-    end_year = start_year - 9
     
+    # 첫 번째 결과가 나올 때까지 start_year를 감소시키며 반복
+    result_df = None
+    for offset in range(1, 3):  # current_year - 1, current_year - 2까지 시도
+        start_year = current_year - offset
+        end_year = start_year - 9
+        result_df = _fetch_finance_dataframe(corp_code, corp_name, start_year, end_year)
+        
+        # 결과가 있고 start_year 데이터가 있으면 성공
+        if result_df is not None and not result_df.empty and not result_df[result_df['year'] == start_year].empty:
+            break
+    
+    if result_df is None or result_df.empty:
+        raise Exception("조회된 재무제표 데이터가 없습니다.")
+    
+    return result_df
+
+
+def _fetch_finance_dataframe(corp_code, corp_name, start_year, end_year):
+    """
+    지정된 연도 범위로 재무제표 데이터를 조회하는 내부 함수
+    
+    Args:
+        corp_code (str): 기업 코드
+        corp_name (str): 기업 이름
+        start_year (int): 시작 연도
+        end_year (int): 종료 연도
+        
+    Returns:
+        pd.DataFrame: 추출된 재무제표 데이터 (실패 시 None)
+    """
     query_years = []
     year = start_year
     while year >= end_year:
@@ -326,7 +354,7 @@ def get_finance_dataframe_10years(corp_name):
             continue
     
     if not all_dataframes:
-        raise Exception("조회된 재무제표 데이터가 없습니다.")
+        return None
     
     result_df = pd.concat(all_dataframes, ignore_index=True)
     result_df['corp_name'] = corp_name
