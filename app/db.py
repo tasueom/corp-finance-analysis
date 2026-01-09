@@ -169,7 +169,7 @@ def get_corp_list():
     try:
         conn = get_conn()
         cursor = conn.cursor()
-        cursor.execute(f"SELECT DISTINCT corp_name FROM {TABLE_NAME}")
+        cursor.execute(f"SELECT DISTINCT corp_name FROM {TABLE_NAME} order by corp_name asc")
         result = cursor.fetchall()
         return result
     except mysql.connector.Error as err:
