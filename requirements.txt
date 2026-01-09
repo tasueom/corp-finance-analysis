@@ -8,4 +8,5 @@ pillow
 numpy
 scikit-learn
 opencv-python
-
+matplotlib
+reportlab
