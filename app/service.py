@@ -25,6 +25,7 @@ from app.finance_service import (
 )
 
 from app.utils import (
+    send_event_to_ga4,
     read_readme,
     format_korean_number,
     validate_year,

@@ -1,7 +1,38 @@
 """
 유틸리티 함수 모듈
 """
-import os
+import os, uuid, requests
+
+# GA4 서버 이벤트 전송 설정
+MEASUREMENT_ID = os.getenv('MEASUREMENT_ID') # GA4 측정 ID
+API_SECRET = os.getenv('API_SECRET') # Measurement Protocol용 비밀키
+CLIENT_ID = str(uuid.uuid4()) # 사용자를 구분하기 위한 임의의 사용자 ID
+
+def send_event_to_ga4(event_name, params):
+    """
+    GA4 서버로 이벤트 데이터를 전송하는 함수
+
+    :param event_name: GA4에서 확인할 이벤트 이름
+    :param params: 이벤트와 함께 전송할 추가 정보 (딕셔너리 형태)
+    """
+
+    # GA4 이벤트 전송용 URL
+    url = f"https://www.google-analytics.com/mp/collect?measurement_id={MEASUREMENT_ID}&api_secret={API_SECRET}"
+
+    # GA4에 전달할 데이터 구조
+    payload = {
+        "client_id": CLIENT_ID,       # 사용자 식별 ID
+        "events": [
+            {
+                "name": event_name,   # 이벤트 이름
+                "params": params      # 이벤트 상세 데이터
+            }
+        ]
+    }
+    
+    # 실제 HTTP POST 요청을 보내 GA 서버로 전송
+    # 이 과정에서 웹페이지 작동에는 영향을 주지 않습니다.
+    requests.post(url, json=payload)
 
 
 def read_readme():
