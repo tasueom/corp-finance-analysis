@@ -7,7 +7,7 @@ app.jinja_env.filters["krnum"] = service.format_korean_number
 
 @app.route('/')
 def index():
-    service.send_event_to_ga4('Page View', 'View Index')
+    service.send_event_to_ga4('page_view', {'page_location': url_for('index', _external=True), 'page_title': 'Index'})
     readme_content = service.read_readme()
     return render_template('index.html', readme_content=readme_content)
 
@@ -16,7 +16,7 @@ def search():
     if request.method == 'POST':
         corp_name = request.form.get('corp_name')
         if corp_name:
-            service.send_event_to_ga4('Search', 'Submit Search', corp_name)
+            service.send_event_to_ga4('search', {'search_term': corp_name})
             try:
                 df = service.get_finance_dataframe_10years(corp_name)
                 data = df.to_dict('records')
@@ -30,7 +30,7 @@ def search():
             except Exception as e:
                 return render_template('search.html', error=str(e), corp_name=corp_name)
     else:
-        service.send_event_to_ga4('Page View', 'View Search Page')
+        service.send_event_to_ga4('page_view', {'page_location': url_for('search', _external=True), 'page_title': 'Search'})
     
     return render_template('search.html')
 
@@ -41,7 +41,7 @@ def api_search_corps():
     if not search_term:
         return jsonify({'corps': []})
     
-    service.send_event_to_ga4('API', 'Search Corps', search_term)
+    service.send_event_to_ga4('api_search_corps', {'search_term': search_term})
     try:
         corps = service.search_corps(search_term, limit=50)
         return jsonify({'corps': corps})
@@ -60,7 +60,7 @@ def insert_data():
             flash('기업 이름이 필요합니다.', 'error')
             return redirect(url_for('search'))
         
-        service.send_event_to_ga4('Database', 'Attempt Insert Data', corp_name)
+        service.send_event_to_ga4('db_insert_attempt', {'corp_name': corp_name})
         
         # service에서 데이터 준비
         success, message, insert_values, is_update = service.prepare_data_for_insert(corp_name)
@@ -73,24 +73,21 @@ def insert_data():
         insert_success = db.insert_data(insert_values)
         
         if insert_success:
-            event_action = 'Update Data' if is_update else 'Insert New Data'
-            service.send_event_to_ga4('Database', event_action, corp_name)
+            event_name = 'db_update_data' if is_update else 'db_insert_new_data'
+            service.send_event_to_ga4(event_name, {'corp_name': corp_name})
             if is_update:
-                # 갱신된 경우
                 flash(f'{corp_name}의 재무제표 데이터가 갱신되었습니다.', 'success')
             else:
-                # 새로 삽입된 경우
                 flash(f'{corp_name}의 재무제표 데이터 {len(insert_values)}개가 성공적으로 저장되었습니다.', 'success')
         else:
             flash('데이터 저장 중 오류가 발생했습니다.', 'error')
         
-        # 검색 결과 페이지로 리다이렉트
         return redirect(url_for('search'))
     
     except Exception as e:
         flash(f'데이터 저장 중 오류가 발생했습니다: {str(e)}', 'error')
         if corp_name:
-            service.send_event_to_ga4('Error', 'Insert Data Failed', corp_name)
+            service.send_event_to_ga4('error', {'error_type': 'insert_data_failed', 'corp_name': corp_name})
         return redirect(url_for('search'))
 
 @app.route('/view', methods=['GET', 'POST'])
@@ -105,26 +102,26 @@ def view():
 
         if action == "select_corp":
             selected_corp = request.form.get("corp_name")
-            service.send_event_to_ga4('Data View', 'Select Corp', selected_corp)
+            service.send_event_to_ga4('select_corp_view', {'corp_name': selected_corp})
             years = db.get_year_list(selected_corp)
             selected_year, rows = service.prepare_view_data(selected_corp, None, years)
 
         elif action == "select_year":
             selected_corp = request.form.get("corp_name")
             selected_year = request.form.get("year")
-            service.send_event_to_ga4('Data View', 'Select Year', f"{selected_corp} - {selected_year}")
+            service.send_event_to_ga4('select_year_view', {'corp_name': selected_corp, 'year': selected_year})
             years = db.get_year_list(selected_corp)
             selected_year, rows = service.prepare_view_data(selected_corp, selected_year, years)
         else:
             selected_corp = None
             selected_year = None
     else:
-        service.send_event_to_ga4('Page View', 'View "View" Page')
+        service.send_event_to_ga4('page_view', {'page_location': url_for('view', _external=True), 'page_title': 'Data View'})
         selected_corp = request.args.get("corp_name")
         selected_year = request.args.get("year")
         
         if selected_corp:
-            service.send_event_to_ga4('Data View', 'View by GET', f"{selected_corp} - {selected_year or 'Latest'}")
+            service.send_event_to_ga4('view_by_get', {'corp_name': selected_corp, 'year': selected_year or 'Latest'})
             years = db.get_year_list(selected_corp)
             selected_year, rows = service.prepare_view_data(selected_corp, selected_year, years)
         else:
@@ -152,9 +149,9 @@ def chart():
     year_list = []
     
     if request.method == 'POST':
-        service.send_event_to_ga4('Chart', 'Select Corp for Chart', f"{selected_corp} - {selected_year or 'Default Year'}")
+        service.send_event_to_ga4('select_corp_chart', {'corp_name': selected_corp, 'year': selected_year or 'Default Year'})
     else:
-        service.send_event_to_ga4('Page View', 'View Chart Page')
+        service.send_event_to_ga4('page_view', {'page_location': url_for('chart', _external=True), 'page_title': 'Chart'})
         
     if selected_corp:
         years = db.get_year_list(selected_corp)
@@ -170,7 +167,7 @@ def chart():
 
 @app.route('/chart1_data/<corp>')
 def chart1_data(corp):
-    service.send_event_to_ga4('API', 'Get Chart1 Data', corp)
+    service.send_event_to_ga4('api_get_chart1', {'corp_name': corp})
     data = db.get_jasan_data(corp)
     years = [row[0] for row in data]
     amounts = [row[1] for row in data]
@@ -178,22 +175,20 @@ def chart1_data(corp):
 
 @app.route('/chart2_data/<corp>/<year>')
 def chart2_data(corp, year):
-    service.send_event_to_ga4('API', 'Get Chart2 Data', f'{corp} - {year}')
+    service.send_event_to_ga4('api_get_chart2', {'corp_name': corp, 'year': year})
     data = db.get_account_data_by_year(corp, year)
-    # row[0]: account_id (로직용), row[1]: account_nm (표시용), row[2]: amount
-    accounts = [row[1] for row in data]  # account_nm만 표시
-    amounts = [row[2] for row in data]   # amount
+    accounts = [row[1] for row in data]
+    amounts = [row[2] for row in data]
     return jsonify({'accounts': accounts, 'amounts': amounts})
 
 @app.route("/export_csv")
 def export_csv():
-    service.send_event_to_ga4('Export', 'Export CSV')
+    service.send_event_to_ga4('export', {'format': 'csv'})
     df = service.export_data_to_csv()
     
-    # BytesIO를 사용하여 가상 파일 생성
     output = BytesIO()
     df.to_csv(output, index=False, encoding="utf-8-sig")
-    output.seek(0)  # 파일 포인터를 처음으로 이동
+    output.seek(0)
     
     return send_file(
         output,
@@ -204,13 +199,12 @@ def export_csv():
     
 @app.route("/export_json")
 def export_json():
-    service.send_event_to_ga4('Export', 'Export JSON')
+    service.send_event_to_ga4('export', {'format': 'json'})
     json_str = service.export_data_to_json()
     
-    # BytesIO를 사용하여 가상 파일 생성
     output = BytesIO()
     output.write(json_str.encode('utf-8'))
-    output.seek(0)  # 파일 포인터를 처음으로 이동
+    output.seek(0)
     
     return send_file(
         output,
@@ -228,7 +222,7 @@ def export_pdf():
         flash("기업을 선택해주세요.", "error")
         return redirect(url_for("view", corp_name=selected_corp, year=selected_year))
     
-    service.send_event_to_ga4('Export', 'Attempt Export PDF', f"{selected_corp} - {selected_year or 'Latest'}")
+    service.send_event_to_ga4('export_attempt', {'format': 'pdf', 'corp_name': selected_corp, 'year': selected_year or 'Latest'})
     
     years = db.get_year_list(selected_corp)
     if not selected_year and years:
@@ -272,10 +266,10 @@ def predict():
     predict_btn = request.form.get('predict_btn')
     
     if request.method == 'GET':
-        service.send_event_to_ga4('Page View', 'View Prediction Page')
+        service.send_event_to_ga4('page_view', {'page_location': url_for('predict', _external=True), 'page_title': 'Prediction'})
     
     if selected_corp and predict_btn == 'predict':
-        service.send_event_to_ga4('Prediction', 'Attempt Prediction', f"{selected_corp} - {selected_year}")
+        service.send_event_to_ga4('prediction_attempt', {'corp_name': selected_corp, 'year': selected_year})
         if not selected_year:
             flash('예측 연도를 입력해주세요.', 'error')
         else:
@@ -288,7 +282,7 @@ def predict():
                     model, COMMON_IDS, TARGET_IDS, metrics, avg_metrics = service.train_model(pivot, target_df)
                     prediction_result = service.predict_company(model, pivot, selected_corp, COMMON_IDS, TARGET_IDS, target_year=year_int)
                     predicted_year = year_int
-                    service.send_event_to_ga4('Prediction', 'Run Prediction Success', f"{selected_corp} - {year_int}")
+                    service.send_event_to_ga4('prediction_success', {'corp_name': selected_corp, 'year': year_int})
                     
             except ValueError as e:
                 if 'invalid literal' in str(e) or 'could not convert' in str(e):
@@ -297,7 +291,7 @@ def predict():
                     flash(str(e), 'error')
             except Exception as e:
                 flash(f'예측 중 오류가 발생했습니다: {str(e)}', 'error')
-                service.send_event_to_ga4('Error', 'Prediction Failed', f"{selected_corp} - {selected_year}")
+                service.send_event_to_ga4('error', {'error_type': 'prediction_failed', 'corp_name': selected_corp, 'year': selected_year})
     
     return render_template('predict.html',
                           corp_list=corp_list,
@@ -315,7 +309,6 @@ def compare():
     corp_list = db.get_corp_list()
 
     if request.method == "POST":
-        # 여러 비교 대상 받아오기
         corp_names = request.form.getlist("corp_name")
         years = request.form.getlist("year")
 
@@ -327,12 +320,8 @@ def compare():
 
         if len(compare_list) < 2:
             flash("최소 2개 이상의 비교 대상을 선택하세요.", "error")
-            return render_template(
-                "compare.html",
-                corp_list=corp_list
-            )
+            return render_template("compare.html", corp_list=corp_list)
         
-        # 동일한 옵션(기업+연도 조합) 중복 체크
         compare_list, duplicates = service.check_duplicate_compare_items(compare_list)
         
         if duplicates:
@@ -340,26 +329,15 @@ def compare():
             
             if len(compare_list) < 2:
                 flash("중복 제거 후 비교 대상이 부족합니다. 최소 2개 이상의 비교 대상을 선택하세요.", "error")
-                return render_template(
-                    "compare.html",
-                    corp_list=corp_list,
-                    error="최소 2개 이상의 비교 대상을 선택하세요."
-                )
+                return render_template("compare.html", corp_list=corp_list, error="최소 2개 이상의 비교 대상을 선택하세요.")
         
-        service.send_event_to_ga4('Compare', 'Submit Comparison', f"Items: {len(compare_list)}")
+        service.send_event_to_ga4('submit_comparison', {'item_count': len(compare_list)})
 
-        # 비교 테이블 생성
         result_df = service.make_compare_table(compare_list)
-        
-        # 🔥 여기서 차트용 데이터 생성
         chart_data = service.make_chart_data(compare_list)
 
         if result_df is None or result_df.empty:
-            return render_template(
-                "compare.html",
-                corp_list=corp_list,
-                error="비교 가능한 항목이 없습니다."
-            )
+            return render_template("compare.html", corp_list=corp_list, error="비교 가능한 항목이 없습니다.")
 
         return render_template(
             "compare.html",
@@ -369,14 +347,14 @@ def compare():
             chart_data=chart_data
         )
 
-    service.send_event_to_ga4('Page View', 'View Compare Page')
+    service.send_event_to_ga4('page_view', {'page_location': url_for('compare', _external=True), 'page_title': 'Compare'})
     return render_template("compare.html", corp_list=corp_list)
 
 @app.route('/api/get_years')
 def api_get_years():
     """연도 리스트 API"""
     corp = request.args.get('corp')
-    service.send_event_to_ga4('API', 'Get Years', corp)
+    service.send_event_to_ga4('api_get_years', {'corp_name': corp})
     years = db.get_year_list(corp)
     years = [y[0] for y in years]
     return jsonify({'years': years})
@@ -384,7 +362,7 @@ def api_get_years():
 @app.route('/pie_data/<corp>/<year>')
 def pie_data(corp, year):
     """파이 차트 데이터 API"""
-    service.send_event_to_ga4('API', 'Get Pie Data', f'{corp} - {year}')
+    service.send_event_to_ga4('api_get_pie_data', {'corp_name': corp, 'year': year})
     data = db.get_pie_data(corp, year)
     return jsonify(data)
 
@@ -399,10 +377,10 @@ def ocr():
         if not file:
             return render_template('ocr.html', error="파일이 없습니다.")
         
-        service.send_event_to_ga4('OCR', 'Perform OCR')
+        service.send_event_to_ga4('perform_ocr', {'filename': file.filename})
         image_data_uri, text_lines = service.process_image(file)
     else:
-        service.send_event_to_ga4('Page View', 'View OCR Page')
+        service.send_event_to_ga4('page_view', {'page_location': url_for('ocr', _external=True), 'page_title': 'OCR'})
 
     return render_template(
         'ocr.html',
